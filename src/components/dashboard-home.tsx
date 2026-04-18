@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 
@@ -53,16 +54,21 @@ export function DashboardHome() {
       <header className="flex flex-col gap-1">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight">FoodTrust</h1>
+            <h1 className="text-3xl font-semibold tracking-tight">ReliefLink</h1>
             <p className="text-sm text-muted-foreground">
-              Verified chain of custody for disaster food aid. Every handoff is
-              physically confirmed on a Raspberry Pi and anchored on Solana
+              Verified chain of custody for disaster food aid. Each handoff is
+              confirmed on the Arduino handoff station and anchored on Solana
               testnet.
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={load}>
-            <RefreshCw className="h-4 w-4" /> refresh
-          </Button>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/stations">Handoff stations</Link>
+            </Button>
+            <Button variant="outline" size="sm" onClick={load}>
+              <RefreshCw className="h-4 w-4" /> refresh
+            </Button>
+          </div>
         </div>
       </header>
 

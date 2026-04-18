@@ -4,9 +4,9 @@ import { type Metadata } from "next";
 import { Geist } from "next/font/google";
 
 export const metadata: Metadata = {
-  title: "FoodTrust — Chain of Custody",
+  title: "ReliefLink — Chain of Custody",
   description:
-    "Verified, trackable handoffs of food aid across warehouse, transporter, and local-node nodes.",
+    "ReliefLink: verified, trackable handoffs of food aid across warehouse, transporter, and local nodes.",
   icons: [{ rel: "icon", url: "/favicon.ico" }],
 };
 

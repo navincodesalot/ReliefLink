@@ -66,7 +66,7 @@ export function buildMemoPayload(input: {
   timestamp: string;
 }): string {
   return [
-    "FoodTrust",
+    "ReliefLink",
     `batch=${input.batchId}`,
     `${input.from}->${input.to}`,
     `device=${input.deviceId}`,

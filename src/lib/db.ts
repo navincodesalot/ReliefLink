@@ -12,22 +12,22 @@ type Cached = {
 };
 
 const globalForMongoose = globalThis as unknown as {
-  _foodtrustMongoose?: Cached;
+  _relieflinkMongoose?: Cached;
 };
 
-const cached: Cached = globalForMongoose._foodtrustMongoose ?? {
+const cached: Cached = globalForMongoose._relieflinkMongoose ?? {
   conn: null,
   promise: null,
 };
 
-globalForMongoose._foodtrustMongoose = cached;
+globalForMongoose._relieflinkMongoose = cached;
 
 export async function connectDb(): Promise<typeof mongoose> {
   if (cached.conn) return cached.conn;
 
   if (!cached.promise) {
     cached.promise = mongoose.connect(MONGODB_URI!, {
-      dbName: "foodtrust",
+      dbName: "relieflink",
       serverSelectionTimeoutMS: 8000,
     });
   }

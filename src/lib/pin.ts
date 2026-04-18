@@ -3,7 +3,7 @@ import { timingSafeEqual } from "node:crypto";
 const PIN_RE = /^[12]+$/;
 
 /**
- * When `TRANSFER_PIN` is set in the environment, hardware/voice clients must
+ * When `TRANSFER_PIN` is set in the environment, USB bridge / voice clients must
  * send the same string in the JSON body as `pin` (only characters `1` and `2`).
  * When unset, `pin` is ignored for backward compatibility.
  */

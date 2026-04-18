@@ -12,9 +12,9 @@ export function hmacHex(body: string, secret = SECRET): string {
 }
 
 /**
- * Verify a Pi / Alexa webhook request. Accepts either:
- *  - `x-foodtrust-signature` = HMAC-SHA256(body, TRANSFER_SECRET) [preferred]
- *  - `x-foodtrust-secret`   = TRANSFER_SECRET itself [dev convenience]
+ * Verify hardware / Alexa webhook requests. Accepts either:
+ *  - `x-relieflink-signature` = HMAC-SHA256(body, TRANSFER_SECRET) [preferred]
+ *  - `x-relieflink-secret`   = TRANSFER_SECRET itself [dev convenience]
  */
 export function verifyTransferAuth(
   headers: Headers,
@@ -22,7 +22,7 @@ export function verifyTransferAuth(
 ): { ok: true } | { ok: false; reason: string } {
   if (!SECRET) return { ok: false, reason: "server missing TRANSFER_SECRET" };
 
-  const sig = headers.get("x-foodtrust-signature");
+  const sig = headers.get("x-relieflink-signature");
   if (sig) {
     const expected = hmacHex(rawBody);
     try {
@@ -35,8 +35,18 @@ export function verifyTransferAuth(
     return { ok: false, reason: "bad signature" };
   }
 
-  const secret = headers.get("x-foodtrust-secret");
+  const secret = headers.get("x-relieflink-secret");
   if (secret && secret === SECRET) return { ok: true };
 
-  return { ok: false, reason: "missing x-foodtrust-signature or x-foodtrust-secret" };
+  return { ok: false, reason: "missing x-relieflink-signature or x-relieflink-secret" };
+}
+
+/** Same secret as transfer dev header — used for handoff-station config APIs. */
+export function verifyReliefLinkSecret(
+  headers: Headers,
+): { ok: true } | { ok: false; reason: string } {
+  if (!SECRET) return { ok: false, reason: "server missing TRANSFER_SECRET" };
+  const secret = headers.get("x-relieflink-secret");
+  if (secret && secret === SECRET) return { ok: true };
+  return { ok: false, reason: "missing or invalid x-relieflink-secret" };
 }

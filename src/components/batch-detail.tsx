@@ -61,16 +61,21 @@ export function BatchDetail({ batchId }: Props) {
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-6 p-6 md:p-10">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <Link
           href="/"
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" /> All batches
         </Link>
-        <Button variant="outline" size="sm" onClick={load}>
-          <RefreshCw className="h-4 w-4" /> refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/stations">Handoff stations</Link>
+          </Button>
+          <Button variant="outline" size="sm" onClick={load}>
+            <RefreshCw className="h-4 w-4" /> refresh
+          </Button>
+        </div>
       </div>
 
       {loading && !batch ? (
@@ -123,7 +128,8 @@ export function BatchDetail({ batchId }: Props) {
             <CardHeader>
               <CardTitle>Timeline</CardTitle>
               <CardDescription>
-                Every physical handoff recorded by a Raspberry Pi button press.
+                Every physical handoff recorded from the Arduino handoff station (USB
+                serial to the field machine).
               </CardDescription>
             </CardHeader>
             <CardContent>

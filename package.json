@@ -1,5 +1,6 @@
 {
   "name": "relief-link",
+  "description": "ReliefLink — disaster food aid chain of custody (Next.js, MongoDB, Solana testnet, Arduino Uno + USB bridge)",
   "version": "0.1.0",
   "private": true,
   "type": "module",

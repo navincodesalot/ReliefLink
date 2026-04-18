@@ -15,7 +15,7 @@ export const runtime = "nodejs";
 /**
  * Voice webhook for Amazon Alexa Routines, IFTTT, Voice Monkey, etc.
  *
- * Usage: create an Alexa Routine "When I say: FoodTrust confirm warehouse" that
+ * Usage: create an Alexa Routine "When I say: ReliefLink confirm warehouse" that
  * triggers a custom action / webhook POSTing to this endpoint. It uses a simple
  * shared-secret query param to keep the contract copy-pasteable into GUIs that
  * cannot set signed headers.
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
 
   const url = new URL(req.url);
   const tokenFromQuery = url.searchParams.get("token");
-  const tokenFromHeader = req.headers.get("x-foodtrust-secret");
+  const tokenFromHeader = req.headers.get("x-relieflink-secret");
   if (tokenFromQuery !== secret && tokenFromHeader !== secret) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
