@@ -8,7 +8,7 @@ import { HandoffStation } from "@/lib/models/HandoffStation";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const deviceIdParam = z.string().min(1).max(64).regex(/^[a-zA-Z0-9._-]+$/);
+const deviceIdParam = z.string().min(1).max(64).regex(/^[-a-zA-Z0-9._]+$/);
 
 const PutBody = z.object({
   displayName: z.string().max(64).default(""),
@@ -67,12 +67,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ deviceId: strin
   return NextResponse.json(toPayload(doc));
 }
 
+/** Open write for dashboard UX; field bridge still uses TRANSFER_SECRET on GET (this device) + POST /transfer. */
 export async function PUT(req: Request, ctx: { params: Promise<{ deviceId: string }> }) {
-  const auth = verifyReliefLinkSecret(req.headers);
-  if (!auth.ok) {
-    return NextResponse.json({ error: auth.reason }, { status: 401 });
-  }
-
   const { deviceId: raw } = await ctx.params;
   const parsedId = deviceIdParam.safeParse(raw);
   if (!parsedId.success) {

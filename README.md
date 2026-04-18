@@ -32,14 +32,14 @@ Set the same variables as in `.env.example` in the Vercel project. On the **fiel
 | `POST` | `/api/voice`        | Webhook for Alexa (token query or secret header).     |
 | `GET`  | `/api/batches`      | List batches.                                         |
 | `GET`  | `/api/batch/[id]`   | Batch + timeline.                                     |
-| `GET`  | `/api/handoff-stations` | List field devices (needs `x-relieflink-secret`).   |
-| `GET`  | `/api/handoff-station/[deviceId]` | Current assignment for one device (same header). |
-| `PUT`  | `/api/handoff-station/[deviceId]` | Set batch + roles for that device (same header). |
+| `GET`  | `/api/handoff-stations` | List field devices (open for dashboard).            |
+| `GET`  | `/api/handoff-station/[deviceId]` | Assignment for one device (`x-relieflink-secret`, used by USB bridge). |
+| `PUT`  | `/api/handoff-station/[deviceId]` | Set batch + roles (open for dashboard; add auth if you expose publicly). |
 
 ### Auth headers
 
 - `x-relieflink-signature`: hex **HMAC-SHA256** of the **raw** JSON body with `TRANSFER_SECRET` (what the USB bridge sends).
-- `x-relieflink-secret`: raw `TRANSFER_SECRET` (dev convenience for `/api/transfer`, and required for **Handoff station** read/write APIs).
+- `x-relieflink-secret`: raw `TRANSFER_SECRET` (dev convenience for `/api/transfer`, and for **`GET /api/handoff-station/[deviceId]`** only — the USB bridge uses it to fetch assignment).
 
 If **`TRANSFER_PIN`** is set on the server, JSON must include **`pin`** (`1` / `2` only), matching exactly.
 
@@ -50,7 +50,7 @@ Wrong `from` vs current holder, stale `STALE_MS`, bad PIN → flagged or rejecte
 ## Demo checklist
 
 1. Create a batch in the UI (dashboard machine).
-2. Open **Handoff stations**, unlock with `TRANSFER_SECRET`, assign your board’s `DEVICE_ID` to that batch and the next `from` → `to` roles.
+2. Open **Handoff stations** and assign your board’s `DEVICE_ID` to that batch and the next `from` → `to` roles.
 3. On the field laptop, run the USB bridge; enter the PIN on the Arduino → `POST /api/transfer` → timeline + Solana explorer link on refresh.
 4. Wrong PIN or wrong holder → failure / flag.
 5. (Optional) Voice Monkey routine with same JSON + `pin`.

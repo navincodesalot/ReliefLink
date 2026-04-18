@@ -14,7 +14,7 @@ So **batch and roles are not fixed in `.env`** — you set them per physical boa
 
 | Machine | Role |
 | ------- | ---- |
-| **Dashboard** | Create batches, open **Handoff stations** (`/stations`), paste `TRANSFER_SECRET` once (session), map each `DEVICE_ID` to batch + `from` → `to`. |
+| **Dashboard** | Create batches, open **Handoff stations** (`/stations`), map each `DEVICE_ID` to batch + `from` → `to`. |
 | **Field** | Run the bridge + Arduino; bridge fetches the latest assignment before each handoff. |
 
 ## Wiring — buttons
@@ -70,8 +70,9 @@ After you **Save** a station row in the UI, the bridge picks it up on the next p
 
 ## API
 
-- **`GET/PUT /api/handoff-station/[deviceId]`** — assignment; requires header `x-relieflink-secret: TRANSFER_SECRET`.
-- **`GET /api/handoff-stations`** — list all stations (same header).
-- **`POST /api/transfer`** — unchanged; body still `batchId`, `from`, `to`, `deviceId`, `pin`.
+- **`GET /api/handoff-station/[deviceId]`** — assignment for the bridge; header `x-relieflink-secret: TRANSFER_SECRET`.
+- **`PUT /api/handoff-station/[deviceId]`** — set assignment from the dashboard (no secret).
+- **`GET /api/handoff-stations`** — list stations for the dashboard (no secret).
+- **`POST /api/transfer`** — unchanged; body still `batchId`, `from`, `to`, `deviceId`, `pin`; HMAC signing.
 
 See the root [README.md](../../README.md) for custody rules and Solana.
