@@ -43,6 +43,14 @@ The bridge sends these automatically (assignment summary, PIN progress, HTTP res
 1. Open the folder in Arduino IDE, board **Arduino Uno**, select COM port, upload.
 2. LCD is on by default with the Grove shield; disable in the sketch only if you remove the module.
 
+### Serial / buttons not registering?
+
+- **Only one program** may open the COM port — close Arduino **Serial Monitor** before `pnpm start` on the bridge.
+- On upload you should see **`[relieflink] uno ready`** in the bridge terminal when it connects; if not, wrong COM port or cable/driver.
+- **`relieflink_handoff_uno.ino`** uses the same **`readButtons()`** logic as **`ledger.ino`** (solo release-to-fire, chord handling). If your build already works with `ledger.ino`, wiring matches.
+- Set **`RELIEFLINK_USE_GROVE_RGB_LCD 0`** to rule out the display locking I2C.
+- Buttons: **D2/D3** to **GND** (pull-up: **pressed = LOW**). To use other pins, change **`PIN_BTN1` / `PIN_BTN2`** in the sketch (same as ledger’s `PIN_BTN1` / `PIN_BTN2`).
+
 ## USB bridge (field laptop)
 
 **Node.js 20+**.

@@ -1,20 +1,24 @@
 /**
  * ReliefLink — Arduino Uno R3: two-button PIN + Grove RGB LCD (I2C).
  *
- * Wiring — buttons (to the shield or breadboard, not a conflicting Grove port):
- *   Button 1 → D2 and GND (INPUT_PULLUP, LOW = pressed)
- *   Button 2 → D3 and GND
+ * The Uno does NOT know the correct PIN. It only sends "1" / "2" over USB
+ * serial; the PC bridge compares against TRANSFER_PIN and talks to the API.
  *
- * Grove Base Shield + Grove LCD RGB backlight: plug the LCD into an **I2C**
- * Grove connector on the shield (Wire uses Uno **A4/A5** under the shield).
- * Library: "Grove - LCD RGB backlight" (`rgb_lcd.h`).
+ * Button reading is intentionally SIMPLE and matches your proven wiring test:
+ * INPUT_PULLUP + active LOW. We fire on press (HIGH→LOW) with a small debounce.
+ *
+ * Wiring — buttons:
+ *   Button 1 → D4 and GND (INPUT_PULLUP, active LOW)
+ *   Button 2 → D6 and GND
+ *
+ * Grove Base Shield + Grove LCD RGB backlight (I2C). Set
+ * RELIEFLINK_USE_GROVE_RGB_LCD 0 to test serial-only.
  *
  * USB serial 115200:
- *   - MCU → host: lines "1" or "2" per button press
- *   - host → MCU: display lines ">0,text\n" and ">1,text\n" (text max 16 chars)
+ *   - MCU → host: lines "1" or "2" per registered digit
+ *   - host → MCU: ">0,text\n" / ">1,text\n" (max 16 chars per line)
  */
 
-// 1 = Grove RGB LCD (default). Set to 0 only if you have no LCD / no rgb_lcd library.
 #ifndef RELIEFLINK_USE_GROVE_RGB_LCD
 #define RELIEFLINK_USE_GROVE_RGB_LCD 1
 #endif
@@ -25,12 +29,13 @@
 rgb_lcd lcd;
 #endif
 
-const int BUTTON_1_PIN = 2;
-const int BUTTON_2_PIN = 3;
-const unsigned long DEBOUNCE_MS = 280;
+#define PIN_BTN1 4
+#define PIN_BTN2 6
 
-unsigned long lastPressMs = 0;
+const unsigned long DEBOUNCE_MS = 80;
+
 String hostLine;
+String pinKeyPreview;
 
 void lcdWriteRow(uint8_t row, const String &msg) {
 #if RELIEFLINK_USE_GROVE_RGB_LCD
@@ -42,6 +47,17 @@ void lcdWriteRow(uint8_t row, const String &msg) {
   for (unsigned i = 0; i < msg.length() && i < 16; i++) {
     lcd.print(msg[i]);
   }
+#endif
+}
+
+void lcdShowKeyPreview(char digit) {
+#if RELIEFLINK_USE_GROVE_RGB_LCD
+  pinKeyPreview += digit;
+  while (pinKeyPreview.length() > 16) {
+    pinKeyPreview.remove(0, 1);
+  }
+  lcdWriteRow(0, "PIN keys");
+  lcdWriteRow(1, pinKeyPreview);
 #endif
 }
 
@@ -65,6 +81,11 @@ void handleHostLine(const String &line) {
     msg = msg.substring(0, 16);
   }
   lcdWriteRow(row, msg);
+#if RELIEFLINK_USE_GROVE_RGB_LCD
+  if (row == 1) {
+    pinKeyPreview = msg;
+  }
+#endif
 }
 
 void processHostSerial() {
@@ -84,10 +105,51 @@ void processHostSerial() {
   }
 }
 
+// Returns: 0 = nothing, 1 = digit 1, 2 = digit 2
+// Fires on press-edge (HIGH→LOW). If both are pressed, ignore (avoid double-fire).
+uint8_t readButtons() {
+  static uint8_t prev1 = HIGH;
+  static uint8_t prev2 = HIGH;
+  static unsigned long lastMs = 0;
+
+  uint8_t b1 = digitalRead(PIN_BTN1);
+  uint8_t b2 = digitalRead(PIN_BTN2);
+
+  // Ignore chords
+  if (b1 == LOW && b2 == LOW) {
+    prev1 = b1;
+    prev2 = b2;
+    return 0;
+  }
+
+  const unsigned long now = millis();
+  if (lastMs != 0 && (now - lastMs) < DEBOUNCE_MS) {
+    prev1 = b1;
+    prev2 = b2;
+    return 0;
+  }
+
+  uint8_t out = 0;
+  if (prev1 == HIGH && b1 == LOW && b2 == HIGH) {
+    out = 1;
+  } else if (prev2 == HIGH && b2 == LOW && b1 == HIGH) {
+    out = 2;
+  }
+
+  if (out != 0) lastMs = now;
+  prev1 = b1;
+  prev2 = b2;
+  return out;
+}
+
 void setup() {
   Serial.begin(115200);
-  pinMode(BUTTON_1_PIN, INPUT_PULLUP);
-  pinMode(BUTTON_2_PIN, INPUT_PULLUP);
+  pinMode(PIN_BTN1, INPUT_PULLUP);
+  pinMode(PIN_BTN2, INPUT_PULLUP);
+
+  delay(80);
+  Serial.println(F("[relieflink] uno ready"));
+  Serial.flush();
 
 #if RELIEFLINK_USE_GROVE_RGB_LCD
   lcd.begin(16, 2);
@@ -100,25 +162,18 @@ void setup() {
 void loop() {
   processHostSerial();
 
-  unsigned long now = millis();
-  if (now - lastPressMs < DEBOUNCE_MS) {
+  uint8_t btn = readButtons();
+  if (btn == 0) {
     return;
   }
 
-  if (digitalRead(BUTTON_1_PIN) == LOW) {
-    lastPressMs = now;
+  if (btn == 1) {
     Serial.println("1");
-    while (digitalRead(BUTTON_1_PIN) == LOW) {
-      delay(5);
-    }
-    return;
-  }
-
-  if (digitalRead(BUTTON_2_PIN) == LOW) {
-    lastPressMs = now;
+    Serial.flush();
+    lcdShowKeyPreview('1');
+  } else if (btn == 2) {
     Serial.println("2");
-    while (digitalRead(BUTTON_2_PIN) == LOW) {
-      delay(5);
-    }
+    Serial.flush();
+    lcdShowKeyPreview('2');
   }
 }
