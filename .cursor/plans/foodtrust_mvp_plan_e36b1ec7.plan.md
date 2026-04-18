@@ -2,27 +2,27 @@
 name: FoodTrust MVP Plan
 overview: "FoodTrust: MongoDB chain-of-custody via Next.js API on Vercel, shadcn dashboard, one Raspberry Pi 4 per supply-chain node on WiFi, Solana testnet Memo transactions as immutable proof, optional Echo Dot voice triggers and Pi speaker feedback. Arduino Uno removed from scope."
 todos:
-    - id: deps-db
-      content: Add mongoose, @solana/web3.js, shadcn init; env vars for MONGODB_URI, TRANSFER_SECRET, STALE_MS, Solana RPC + two key roles (see plan)
-      status: pending
-    - id: models-api
-      content: Implement Batch + TransferEvent models; Zod-validated APIs; anomaly rules; after successful transfer submit Solana memo and persist tx signature on the event
-      status: pending
-    - id: solana-memo
-      content: "Testnet: build Memo instruction (canonical JSON or hash), sign/send, map errors; store signature + explorer URL in TransferEvent"
-      status: pending
-    - id: dashboard-ui
-      content: "FoodTrust dashboard with batch list/detail, timeline, status colors, Solana tx links, create-batch form, polling"
-      status: pending
-    - id: pi-client
-      content: "Per-node Raspberry Pi 4 script (WiFi): env for deviceId/from/to, debounced GPIO → POST /api/transfer + HMAC; optional speaker beep/TTS on success"
-      status: pending
-    - id: alexa-speaker
-      content: "Echo Dot path (Routine/webhook or minimal skill) hitting API or Pi; document Pi audio output for confirmations"
-      status: pending
-    - id: demo-hardening
-      content: "2-minute demo script + failure cases; Vercel + Atlas + testnet faucet; verify explorer links"
-      status: pending
+  - id: deps-db
+    content: Add mongoose, @solana/web3.js, shadcn init; env vars for MONGODB_URI, TRANSFER_SECRET, STALE_MS, Solana RPC + two key roles (see plan)
+    status: completed
+  - id: models-api
+    content: Implement Batch + TransferEvent models; Zod-validated APIs; anomaly rules; after successful transfer submit Solana memo and persist tx signature on the event
+    status: completed
+  - id: solana-memo
+    content: "Testnet: build Memo instruction (canonical JSON or hash), sign/send, map errors; store signature + explorer URL in TransferEvent"
+    status: completed
+  - id: dashboard-ui
+    content: FoodTrust dashboard with batch list/detail, timeline, status colors, Solana tx links, create-batch form, polling
+    status: completed
+  - id: pi-client
+    content: "Per-node Raspberry Pi 4 script (WiFi): env for deviceId/from/to, debounced GPIO → POST /api/transfer + HMAC; optional speaker beep/TTS on success"
+    status: completed
+  - id: alexa-speaker
+    content: Echo Dot path (Routine/webhook or minimal skill) hitting API or Pi; document Pi audio output for confirmations
+    status: completed
+  - id: demo-hardening
+    content: 2-minute demo script + failure cases; Vercel + Atlas + testnet faucet; verify explorer links
+    status: completed
 isProject: false
 ---
 
@@ -38,10 +38,10 @@ isProject: false
 
 **Use the Solana Memo program on testnet**, not a custom on-chain program, for the hackathon.
 
-| Approach | Pros | Cons |
-| -------- | ---- | ---- |
-| **Memo instruction** (recommended) | No Rust/Anchor deploy; tiny code; standard program; fast to ship; explorer shows readable memo | Does not *enforce* custody rules on-chain — your API + DB remain source of truth for validation; memo is **tamper-evident public proof** of what you asserted at transfer time |
-| **Custom program** (Anchor/Rust) | Can encode rules in state | High24h risk: program deploy, accounts, debugging; steals time from demo polish |
+| Approach                           | Pros                                                                                           | Cons                                                                                                                                                                           |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Memo instruction** (recommended) | No Rust/Anchor deploy; tiny code; standard program; fast to ship; explorer shows readable memo | Does not _enforce_ custody rules on-chain — your API + DB remain source of truth for validation; memo is **tamper-evident public proof** of what you asserted at transfer time |
+| **Custom program** (Anchor/Rust)   | Can encode rules in state                                                                      | High24h risk: program deploy, accounts, debugging; steals time from demo polish                                                                                                |
 
 **Hybrid story for judges:** “Off-chain we validate chain-of-custody and anomalies; **on-chain we anchor a canonical record** of each valid handoff as a signed transaction with a memo payload.” That is honest and strong for a demo.
 
@@ -49,7 +49,7 @@ isProject: false
 
 **Implementation:** `@solana/web3.js` — build a transaction with `SystemProgram.transfer` of **0 lamports** to self (or a tiny testnet “sink” address) **plus** `createMemoInstruction` from the official memo package if you use it, or the memo program id with serialized data per docs. Send to **testnet** RPC (e.g. `https://api.testnet.solana.com` or a provider URL); persist returned `signature` on `TransferEvent` (e.g. `solanaSignature`) and show **Solana Explorer** link with `cluster=testnet` in the dashboard.
 
-**When a custom program would be worth it:** If the team already has Anchor experience *and* extra time — otherwise defer.
+**When a custom program would be worth it:** If the team already has Anchor experience _and_ extra time — otherwise defer.
 
 ## Architecture (Vercel + Atlas + testnet)
 
@@ -86,12 +86,12 @@ Use **Zod** in route handlers.
 
 ## API surface
 
-| Intent | Method path | Behavior |
-| ------ | ----------- | -------- |
-| Create batch | `POST /api/batch/create` | Insert batch; `currentHolder` = `origin`; initialize counters/dates. Optionally anchor “batch created” memo (stretch). |
-| Record transfer | `POST /api/transfer` | Validate batch; anomaly rules; insert `TransferEvent`; update batch; **then** Solana memo + save `solanaSignature`. |
-| Batch detail | `GET /api/batch/[id]` | Batch + sorted timeline (include explorer links). |
-| List | `GET /api/batches` | Newest first. |
+| Intent          | Method path              | Behavior                                                                                                               |
+| --------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| Create batch    | `POST /api/batch/create` | Insert batch; `currentHolder` = `origin`; initialize counters/dates. Optionally anchor “batch created” memo (stretch). |
+| Record transfer | `POST /api/transfer`     | Validate batch; anomaly rules; insert `TransferEvent`; update batch; **then** Solana memo + save `solanaSignature`.    |
+| Batch detail    | `GET /api/batch/[id]`    | Batch + sorted timeline (include explorer links).                                                                      |
+| List            | `GET /api/batches`       | Newest first.                                                                                                          |
 
 **Anomaly rules (unchanged):** wrong `from` vs `currentHolder`; stale `lastUpdated` on read; wrong final destination. Flag `batch.isFlagged` as before.
 
@@ -120,7 +120,7 @@ Document in `.env.example` only variable **names** (e.g. `SOLANA_RPC_URL` pointi
 
 - Python (or Node): GPIO button debounce → POST `/api/transfer` with JSON `{ batchId, from, to, deviceId }` and HMAC/header.
 - **Per-device config file** on SD card or `/etc/foodtrust.env`: `API_BASE_URL`, `TRANSFER_SECRET`, `DEVICE_ID`, `ROLE_FROM`, `ROLE_TO`, `BATCH_ID` (for fixed demo) or small LCD/menu later.
-- **Speaker output:** On success HTTP response, play a short beep or `espeak`/TTS (“Transfer logged”) so the table demo is visible *and* audible.
+- **Speaker output:** On success HTTP response, play a short beep or `espeak`/TTS (“Transfer logged”) so the table demo is visible _and_ audible.
 
 ### Amazon Echo Dot
 
