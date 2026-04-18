@@ -17,7 +17,8 @@ const DEVICE_ID = process.env.DEVICE_ID?.trim();
 const EXPECTED_PIN = process.env.TRANSFER_PIN?.trim() ?? "";
 const SERIAL_PATH = process.env.SERIAL_PORT?.trim();
 const BAUD = Number(process.env.SERIAL_BAUD ?? "115200");
-const PIN_IDLE_MS = Number(process.env.PIN_IDLE_MS ?? "15000");
+/** Max pause between PIN digits before buffer clears (ms). Use 60000+ if you type slowly. */
+const PIN_IDLE_MS = Number(process.env.PIN_IDLE_MS ?? "60000");
 const ASSIGNMENT_POLL_MS = Number(process.env.ASSIGNMENT_POLL_MS ?? "8000");
 
 function requireEnv(name, value) {
@@ -67,9 +68,30 @@ async function fetchAssignment() {
     const res = await fetch(url, {
       headers: { "x-relieflink-secret": SECRET },
     });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
+    const text = await res.text();
+    if (!res.ok) {
+      console.error(`[relieflink] assignment GET ${res.status}`, text.slice(0, 300));
+      return null;
+    }
+    let json;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      console.error("[relieflink] assignment: bad JSON", text.slice(0, 200));
+      return null;
+    }
+    if (json?.configured) {
+      console.log(
+        `[relieflink] assignment OK  batch=${json.batchId}  ${json.from} → ${json.to}`,
+      );
+    } else {
+      console.warn(
+        `[relieflink] assignment empty for DEVICE_ID=${DEVICE_ID} — open app /stations, add row, Save (same secret as Vercel).`,
+      );
+    }
+    return json;
+  } catch (e) {
+    console.error("[relieflink] assignment fetch error:", e?.message ?? e);
     return null;
   }
 }
@@ -240,7 +262,9 @@ async function main() {
     `[relieflink] USB bridge ${DEVICE_ID} on ${SERIAL_PATH} @ ${BAUD} → ${API_URL}`,
   );
   if (EXPECTED_PIN) {
-    console.log(`[relieflink] TRANSFER_PIN length ${EXPECTED_PIN.length} (must match server)`);
+    console.log(
+      `[relieflink] TRANSFER_PIN length ${EXPECTED_PIN.length} (must match server). Enter all digits within ${PIN_IDLE_MS}ms pauses or buffer clears.`,
+    );
   } else {
     console.log(
       "[relieflink] No TRANSFER_PIN on bridge: will POST accumulated digits after idle (server may still require PIN).",
