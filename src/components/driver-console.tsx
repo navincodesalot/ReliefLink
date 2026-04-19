@@ -16,6 +16,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { useLanguage } from "@/components/language-provider";
 import { SearchableSelect, type SearchOption } from "@/components/searchable-select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +35,42 @@ import { runStagedLedgerUi } from "@/lib/staged-ledger-ui";
 import type { DriverJobJSON } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+function tpl(template: string, vars: Record<string, string | number>) {
+  let out = template;
+  for (const [k, v] of Object.entries(vars)) {
+    out = out.replaceAll(`{{${k}}}`, String(v));
+  }
+  return out;
+}
+
+type TFn = (key: string) => string;
+
+function legStatusLabel(status: string, t: TFn) {
+  switch (status) {
+    case "in_transit":
+      return t("driverStatusInTransit");
+    case "awaiting_proof":
+      return t("driverStatusAwaitingProof");
+    case "pending":
+      return t("driverStatusPending");
+    case "done":
+      return t("driverStatusDone");
+    case "flagged":
+      return t("driverStatusFlagged");
+    default:
+      return status;
+  }
+}
+
+function qualityLabel(
+  q: "good" | "acceptable" | "poor",
+  t: TFn,
+) {
+  if (q === "good") return t("driverQGood");
+  if (q === "acceptable") return t("driverQAcceptable");
+  return t("driverQPoor");
+}
+
 const PROOF_WINDOW_MS = 120_000;
 
 const STORAGE_KEY = "relieflink.driverDeviceId";
@@ -46,6 +83,7 @@ type DriverRow = {
 };
 
 export function DriverConsole() {
+  const { t } = useLanguage();
   const [drivers, setDrivers] = useState<DriverRow[]>([]);
   const [deviceId, setDeviceId] = useState("");
   const [job, setJob] = useState<DriverJobJSON | null>(null);
@@ -77,7 +115,7 @@ export function DriverConsole() {
   useEffect(() => {
     if (!deviceId) return;
     if (typeof navigator === "undefined" || !navigator.geolocation) {
-      setGeoHint("Location unavailable (use HTTPS or enable GPS).");
+      setGeoHint(t("driverGeoUnavailable"));
       return;
     }
     setGeoHint(null);
@@ -97,11 +135,11 @@ export function DriverConsole() {
           }),
         });
       },
-      () => setGeoHint("Could not read GPS—check browser permissions."),
+      () => setGeoHint(t("driverGeoPermission")),
       { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 },
     );
     return () => navigator.geolocation.clearWatch(watchId);
-  }, [deviceId]);
+  }, [deviceId, t]);
 
   const load = useCallback(async (id: string) => {
     if (!id) return;
@@ -115,11 +153,11 @@ export function DriverConsole() {
       setJob(data);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "failed");
+      setError(err instanceof Error ? err.message : t("driverJobLoadError"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (!deviceId) return;
@@ -135,16 +173,16 @@ export function DriverConsole() {
     if (celebratedLegKey.current === key) return;
     celebratedLegKey.current = key;
     void fireCelebration();
-    toast.success("Handoff anchored on Solana.", {
+    toast.success(t("driverToastHandoffTitle"), {
       description: leg.solanaExplorerUrl
-        ? "View the signed leg on Solana Explorer."
-        : "The leg is complete.",
+        ? t("driverToastHandoffExplorer")
+        : t("driverToastHandoffDone"),
     });
-  }, [job]);
+  }, [job, t]);
 
   function chooseDriver(id: string) {
     if (!/^[-a-zA-Z0-9._]+$/.test(id)) {
-      setError("device ID: letters, numbers, dot, underscore, hyphen only");
+      setError(t("driverDeviceIdRule"));
       return;
     }
     setError(null);
@@ -154,8 +192,8 @@ export function DriverConsole() {
     }
     const picked = drivers.find((d) => d.driverDeviceId === id);
     if (picked) {
-      toast.success(`Signed in as ${picked.name}`, {
-        description: `device ${picked.driverDeviceId}`,
+      toast.success(tpl(t("driverToastSignedIn"), { name: picked.name }), {
+        description: tpl(t("driverToastDeviceLine"), { id: picked.driverDeviceId }),
       });
     }
   }
@@ -181,12 +219,9 @@ export function DriverConsole() {
       <div className="mx-auto w-full max-w-2xl space-y-6 p-4 md:p-8">
         <header className="space-y-1">
           <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
-            <Truck className="h-6 w-6 text-amber-500" /> Driver console
+            <Truck className="h-6 w-6 text-amber-500" /> {t("driverConsole")}
           </h1>
-          <p className="text-sm text-muted-foreground">
-            Pick your driver profile — your GPS, active leg, and distance to the next
-            stop update live for UN admins and warehouses.
-          </p>
+          <p className="text-sm text-muted-foreground">{t("driverPageSubtitle")}</p>
           {geoHint ? (
             <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">{geoHint}</p>
           ) : null}
@@ -195,15 +230,12 @@ export function DriverConsole() {
         {!deviceId ? (
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Select driver</CardTitle>
-              <CardDescription>
-                Only drivers seeded by the UN admin can sign in here. Search by name,
-                email, or device ID.
-              </CardDescription>
+              <CardTitle className="text-base">{t("driverSelectCardTitle")}</CardTitle>
+              <CardDescription>{t("driverSelectCardDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="space-y-1.5">
-                <Label htmlFor="driver-picker">Driver</Label>
+                <Label htmlFor="driver-picker">{t("driverFieldLabel")}</Label>
                 <SearchableSelect
                   id="driver-picker"
                   options={driverOptions}
@@ -211,11 +243,11 @@ export function DriverConsole() {
                   onChange={chooseDriver}
                   placeholder={
                     drivers.length === 0
-                      ? "No drivers seeded yet…"
-                      : "Search drivers…"
+                      ? t("driverPlaceholderNoDrivers")
+                      : t("driverPlaceholderSearch")
                   }
-                  searchPlaceholder="Search name, email, or device id…"
-                  emptyMessage="No matching drivers."
+                  searchPlaceholder={t("driverSearchPlaceholder")}
+                  emptyMessage={t("driverSearchEmpty")}
                 />
               </div>
               {error ? <p className="text-sm text-destructive">{error}</p> : null}
@@ -234,7 +266,7 @@ export function DriverConsole() {
                   </div>
                 </div>
                 <Button variant="ghost" size="sm" onClick={clearDevice}>
-                  Switch driver
+                  {t("driverSwitchDriver")}
                 </Button>
               </CardContent>
             </Card>
@@ -254,14 +286,15 @@ export function DriverConsole() {
   );
 }
 
-function renderQualityBadge(leg: NonNullable<DriverJobJSON["leg"]>) {
-  if (leg.deliveryQuality === "good") return <Badge variant="success">good</Badge>;
+function renderQualityBadge(leg: NonNullable<DriverJobJSON["leg"]>, t: TFn) {
+  if (leg.deliveryQuality === "good")
+    return <Badge variant="success">{t("driverQGood")}</Badge>;
   if (leg.deliveryQuality === "acceptable")
-    return <Badge variant="warning">acceptable</Badge>;
+    return <Badge variant="warning">{t("driverQAcceptable")}</Badge>;
   if (leg.deliveryQuality === "poor")
-    return <Badge variant="destructive">poor condition</Badge>;
+    return <Badge variant="destructive">{t("driverQPoor")}</Badge>;
   if (leg.deliveryMatchesManifest === false)
-    return <Badge variant="destructive">manifest mismatch</Badge>;
+    return <Badge variant="destructive">{t("driverQManifestMismatch")}</Badge>;
   return null;
 }
 
@@ -274,6 +307,7 @@ function ProofCapturePanel({
   proofDueAt: string | null;
   refresh: () => void;
 }) {
+  const { t } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -310,11 +344,11 @@ function ProofCapturePanel({
 
   async function submit() {
     if (!file) {
-      toast.error("Take a photo of the goods first.");
+      toast.error(t("driverToastTakePhotoFirst"));
       return;
     }
     if (expired) {
-      toast.error("The 2-minute window expired. Refresh to see the updated status.");
+      toast.error(t("driverToastWindowExpired"));
       refresh();
       return;
     }
@@ -335,12 +369,12 @@ function ProofCapturePanel({
         error?: string;
       }>({
         steps: [
-          { label: "Uploading delivery photo…" },
-          { label: "Verifying items with Gemini…" },
-          { label: "Anchoring handoff on Solana…" },
+          { label: t("driverStagedUpload") },
+          { label: t("driverStagedVerify") },
+          { label: t("driverStagedAnchor") },
         ],
-        successLabel: "Delivery verified and anchored.",
-        errorLabel: "Photo verification failed.",
+        successLabel: t("driverStagedSuccess"),
+        errorLabel: t("driverStagedPhotoFail"),
         run: async () => {
           const res = await fetch("/api/driver/delivery-proof", {
             method: "POST",
@@ -362,15 +396,18 @@ function ProofCapturePanel({
 
       if (data.verdict) {
         const { matchesManifest, quality, rationale, flagged } = data.verdict;
+        const qLabel = qualityLabel(quality, t);
         if (flagged) {
           toast.warning(
             matchesManifest
-              ? `Delivered but quality flagged as ${quality}.`
-              : "Delivered but goods do not match the manifest.",
+              ? tpl(t("driverToastQualityFlagged"), { quality: qLabel })
+              : t("driverToastManifestMismatch"),
             { description: rationale },
           );
         } else {
-          toast.success(`Delivery verified (${quality}).`, { description: rationale });
+          toast.success(tpl(t("driverToastVerified"), { quality: qLabel }), {
+            description: rationale,
+          });
         }
       }
       setFile(null);
@@ -389,13 +426,11 @@ function ProofCapturePanel({
     <div className="space-y-3">
       <Alert className="border-blue-500/40 bg-blue-500/10">
         <Camera className="h-4 w-4" />
-        <AlertTitle>Delivery photo required</AlertTitle>
+        <AlertTitle>{t("driverDeliveryAlertTitle")}</AlertTitle>
         <AlertDescription>
-          Capture the goods you delivered so AI can verify the shipment. You have{" "}
-          <span className="font-mono font-semibold">
-            {secondsLeft > 0 ? `${secondsLeft}s` : "0s"}
-          </span>{" "}
-          before this leg is flagged for audit.
+          {tpl(t("driverDeliveryAlertDesc"), {
+            secs: secondsLeft > 0 ? `${secondsLeft}s` : "0s",
+          })}
         </AlertDescription>
       </Alert>
 
@@ -427,7 +462,7 @@ function ProofCapturePanel({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={previewUrl}
-            alt="Delivery preview"
+            alt={t("driverAltDeliveryPreview")}
             className="h-48 w-full object-cover sm:h-64"
           />
         </div>
@@ -443,7 +478,7 @@ function ProofCapturePanel({
           disabled={submitting || expired}
         >
           <Camera className="h-5 w-5" />
-          {file ? "Retake photo" : "Take photo of goods"}
+          {file ? t("driverRetakePhoto") : t("driverTakePhoto")}
         </Button>
         <Button
           type="button"
@@ -453,7 +488,7 @@ function ProofCapturePanel({
           disabled={!file || submitting || expired}
         >
           <Upload className="h-5 w-5" />
-          {submitting ? "Verifying…" : "Submit delivery photo"}
+          {submitting ? t("driverVerifying") : t("driverSubmitPhoto")}
         </Button>
       </div>
 
@@ -466,7 +501,7 @@ function ProofCapturePanel({
           className="w-full"
         >
           <RefreshCw className="h-4 w-4" />
-          Refresh status
+          {t("driverRefreshStatus")}
         </Button>
       ) : null}
     </div>
@@ -515,12 +550,13 @@ async function fireCelebration() {
 }
 
 function DriverEmergencyPanel({ deviceId }: { deviceId: string }) {
+  const { t } = useLanguage();
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function send() {
     if (!message.trim()) {
-      toast.error("Describe what you need.");
+      toast.error(t("driverEmergencyNeedDesc"));
       return;
     }
     setBusy(true);
@@ -532,10 +568,10 @@ function DriverEmergencyPanel({ deviceId }: { deviceId: string }) {
       });
       const data = (await res.json()) as { error?: string };
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-      toast.success("UN administrators have been notified.");
+      toast.success(t("driverEmergencyNotified"));
       setMessage("");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "failed");
+      toast.error(e instanceof Error ? e.message : t("driverJobLoadError"));
     } finally {
       setBusy(false);
     }
@@ -546,22 +582,19 @@ function DriverEmergencyPanel({ deviceId }: { deviceId: string }) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base text-destructive">
           <AlertTriangle className="h-4 w-4" />
-          Emergency assistance
+          {t("driverEmergencyTitle")}
         </CardTitle>
-        <CardDescription>
-          Sends an alert to UN administrators with your device id and message. Use only
-          for real incidents.
-        </CardDescription>
+        <CardDescription>{t("driverEmergencyDesc")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         <textarea
           className="min-h-[88px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          placeholder="Vehicle issue, route blocked, safety concern…"
+          placeholder={t("driverEmergencyPlaceholder")}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
         />
         <Button type="button" variant="destructive" disabled={busy} onClick={() => void send()}>
-          {busy ? "Sending…" : "Request assistance"}
+          {busy ? t("driverEmergencySending") : t("driverEmergencyRequest")}
         </Button>
       </CardContent>
     </Card>
@@ -583,6 +616,8 @@ function JobCard({
   livePos: { lat: number; lng: number } | null;
   refresh: () => void;
 }) {
+  const { t } = useLanguage();
+
   if (error) {
     return (
       <Card className="border-destructive/40">
@@ -594,7 +629,7 @@ function JobCard({
     return (
       <Card>
         <CardContent className="py-6 text-sm text-muted-foreground">
-          {loading ? "Checking for assignments…" : "Couldn't load assignments. Try refreshing."}
+          {loading ? t("driverJobChecking") : t("driverJobLoadError")}
         </CardContent>
       </Card>
     );
@@ -609,7 +644,7 @@ function JobCard({
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Truck className="h-4 w-4 text-muted-foreground" />
-            No upcoming delivery
+            {t("driverNoDeliveryTitle")}
           </CardTitle>
           <CardDescription className="text-sm leading-relaxed text-muted-foreground">
             {job.message}
@@ -624,23 +659,34 @@ function JobCard({
   const done = leg.status === "done";
   const latestSig = shipment.latestSolanaExplorerUrl;
   const progress = shipment.progressPct;
-  const qualityBadge = renderQualityBadge(leg);
+  const qualityBadge = renderQualityBadge(leg, t);
+  const statusBadgeText = awaitingProof
+    ? t("driverBadgePhotoRequired")
+    : legStatusLabel(leg.status, t);
 
   const distKm =
     livePos && job.toNode
       ? haversineKm(livePos, { lat: job.toNode.lat, lng: job.toNode.lng })
       : null;
 
+  const cargoLine = [
+    shipment.description ?? shipment.cargo ?? t("driverReliefCargo"),
+    shipment.quantity
+      ? tpl(t("driverUnitsFmt"), { n: shipment.quantity })
+      : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
     <Card>
       <CardHeader>
         <div className="flex items-start justify-between gap-2">
           <div>
-            <CardTitle className="text-base">Shipment {shipment.shipmentId}</CardTitle>
-            <CardDescription>
-              {shipment.description ?? shipment.cargo ?? "Relief cargo"}
-              {shipment.quantity ? ` · ${shipment.quantity} units` : ""}
-            </CardDescription>
+            <CardTitle className="text-base">
+              {tpl(t("driverShipmentHeading"), { id: shipment.shipmentId })}
+            </CardTitle>
+            <CardDescription>{cargoLine}</CardDescription>
           </div>
           <Badge
             variant={
@@ -653,7 +699,7 @@ function JobCard({
                     : "secondary"
             }
           >
-            {awaitingProof ? "photo required" : leg.status}
+            {statusBadgeText}
           </Badge>
         </div>
       </CardHeader>
@@ -663,7 +709,10 @@ function JobCard({
           <ArrowRight className="h-4 w-4 text-muted-foreground" />
           <span className="font-semibold">{job.toNode?.name ?? leg.toNodeId}</span>
           <span className="ml-auto text-xs text-muted-foreground">
-            leg {leg.index + 1}/{shipment.totalLegs}
+            {tpl(t("driverLegFmt"), {
+              current: leg.index + 1,
+              total: shipment.totalLegs,
+            })}
           </span>
         </div>
 
@@ -675,11 +724,13 @@ function JobCard({
                 <div className="font-medium">{job.toNode.name}</div>
                 {distKm !== null ? (
                   <div className="text-sm font-semibold text-primary">
-                    ~{formatDistanceKm(distKm)} to this stop (straight-line)
+                    {tpl(t("driverDistanceToStop"), {
+                      dist: formatDistanceKm(distKm),
+                    })}
                   </div>
                 ) : (
                   <div className="text-xs text-muted-foreground">
-                    Enable location to see distance to this warehouse.
+                    {t("driverEnableLocationHint")}
                   </div>
                 )}
                 {job.toNode.address ? (
@@ -694,7 +745,7 @@ function JobCard({
                   rel="noopener noreferrer"
                   className="mt-1 inline-flex items-center gap-1 text-xs text-primary hover:underline"
                 >
-                  open in map <ExternalLink className="h-3 w-3" />
+                  {t("driverOpenInMap")} <ExternalLink className="h-3 w-3" />
                 </a>
               </div>
             </div>
@@ -703,7 +754,7 @@ function JobCard({
 
         <div>
           <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
-            <span>Shipment progress</span>
+            <span>{t("driverShipmentProgress")}</span>
             <span className="tabular-nums">{progress}%</span>
           </div>
           <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
@@ -739,11 +790,8 @@ function JobCard({
               <div className="flex items-center gap-2">
                 <Radio className="h-4 w-4 animate-pulse text-amber-600" />
                 <div>
-                  <div className="font-medium">Waiting for tap at destination</div>
-                  <div className="text-xs text-muted-foreground">
-                    Touch the driver&apos;s copper pad to the beacon&apos;s pad. The store
-                    will buzz after 3 seconds and the handoff will sign on Solana.
-                  </div>
+                  <div className="font-medium">{t("driverInTransitTitle")}</div>
+                  <div className="text-xs text-muted-foreground">{t("driverInTransitDesc")}</div>
                 </div>
               </div>
             ) : done ? (
@@ -751,10 +799,10 @@ function JobCard({
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium">Leg complete</span>
+                    <span className="font-medium">{t("driverLegComplete")}</span>
                     {qualityBadge}
                     {leg.proofSkippedReason === "timeout" ? (
-                      <Badge variant="warning">photo missed</Badge>
+                      <Badge variant="warning">{t("driverPhotoMissedBadge")}</Badge>
                     ) : null}
                   </div>
                 </div>
@@ -765,7 +813,7 @@ function JobCard({
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
                   >
-                    view chain anchor <ExternalLink className="h-3 w-3" />
+                    {t("driverViewChainAnchor")} <ExternalLink className="h-3 w-3" />
                   </a>
                 ) : null}
                 {leg.deliveryProofNotes ? (
@@ -775,14 +823,18 @@ function JobCard({
                 ) : null}
               </div>
             ) : (
-              <div className="text-muted-foreground">Leg is {leg.status}.</div>
+              <div className="text-muted-foreground">
+                {tpl(t("driverLegStatusLine"), {
+                  status: legStatusLabel(leg.status, t),
+                })}
+              </div>
             )}
           </div>
         )}
 
         {latestSig ? (
           <div className="text-xs text-muted-foreground">
-            Latest on-chain anchor:{" "}
+            {t("driverLatestOnChain")}{" "}
             <a
               href={latestSig}
               target="_blank"

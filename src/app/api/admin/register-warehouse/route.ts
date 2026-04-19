@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { requireAdminApi } from "@/lib/auth/require-admin";
 import { connectDb } from "@/lib/db";
 import { NodeModel } from "@/lib/models/Node";
 import { UserModel } from "@/lib/models/User";
 
 /**
- * Register a warehouse account. Demo-mode (no auth): email/password are
- * optional since sign-in is removed.
+ * Register a warehouse account. Requires an authenticated admin session cookie.
+ * Email/password are optional for seeded demo users.
  */
 const bodySchema = z.object({
   email: z.string().email().optional(),
@@ -19,6 +20,9 @@ const DUMMY_PASSWORD_HASH =
   "$2a$10$noLoginNoPasswordDummyHashStringXXXXXXXXXXXXXXXXXXXXXXXX";
 
 export async function POST(req: Request) {
+  const auth = await requireAdminApi();
+  if (!auth.ok) return auth.response;
+
   let json: unknown;
   try {
     json = await req.json();

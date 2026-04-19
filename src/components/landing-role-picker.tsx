@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import { Boxes, Eye, Shield, Truck } from "lucide-react";
 
+import { useLanguage } from "@/components/language-provider";
 import { PageBackdrop } from "@/components/page-backdrop";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,60 +14,57 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-const ROLES = [
+const ROLE_KEYS = [
   {
-    href: "/admin",
-    title: "UN administrator",
-    description:
-      "Register Arduinos, drivers, and nodes; oversee emergencies and the full live map.",
+    href: "/admin/login",
+    titleKey: "roleAdminTitle" as const,
+    descKey: "roleAdminDesc" as const,
+    ctaKey: "roleAdminCta" as const,
     icon: Shield,
-    cta: "Open console",
   },
   {
     href: "/nodes",
-    title: "Network nodes",
-    description:
-      "Pick any site—warehouse, store, or local node. Record need / want / have, track drivers, and get late-leg alerts.",
+    titleKey: "roleNodesTitle" as const,
+    descKey: "roleNodesDesc" as const,
+    ctaKey: "roleNodesCta" as const,
     icon: Boxes,
-    cta: "Open workspace",
   },
   {
     href: "/driver",
-    title: "Driver",
-    description:
-      "Pick your driver profile, share location, and request help when you need it.",
+    titleKey: "roleDriverTitle" as const,
+    descKey: "roleDriverDesc" as const,
+    ctaKey: "roleDriverCta" as const,
     icon: Truck,
-    cta: "Open driver",
   },
   {
     href: "/track",
-    title: "Public chain of custody",
-    description:
-      "Inspect Solana testnet transactions for every verified handoff.",
+    titleKey: "roleLedgerTitle" as const,
+    descKey: "roleLedgerDesc" as const,
+    ctaKey: "roleLedgerCta" as const,
     icon: Eye,
-    cta: "View ledger",
   },
 ] as const;
 
 export function LandingRolePicker() {
+  const { t } = useLanguage();
+
   return (
     <PageBackdrop>
       <div className="mx-auto flex max-w-6xl flex-col gap-10 px-4 py-14 md:px-8 md:py-20">
         <header className="space-y-4 text-center md:text-left">
           <p className="text-muted-foreground text-xs tracking-[0.25em] uppercase">
-            ReliefLink
+            {t("landingEyebrow")}
           </p>
           <h1 className="text-3xl font-semibold tracking-tight text-balance md:text-5xl">
-            Disaster food aid, verified on the ground and on-chain
+            {t("landingTitle")}
           </h1>
           <p className="text-muted-foreground mx-auto max-w-2xl text-sm leading-relaxed text-pretty md:mx-0 md:text-base">
-            Pick a portal below. Drivers, node operators, and public observers
-            all open instantly — only the UN admin portal can seed new drivers.
+            {t("landingSubtitle")}
           </p>
         </header>
 
         <section className="grid gap-4 md:grid-cols-2">
-          {ROLES.map(({ href, title, description, icon: Icon, cta }) => (
+          {ROLE_KEYS.map(({ href, titleKey, descKey, ctaKey, icon: Icon }) => (
             <Card
               key={href}
               className="border-border/70 bg-card/70 hover:border-primary/35 flex flex-col shadow-sm backdrop-blur-md transition hover:shadow-md"
@@ -75,18 +75,16 @@ export function LandingRolePicker() {
                     <Icon className="h-5 w-5" aria-hidden />
                   </span>
                   <div className="space-y-1">
-                    <CardTitle className="text-lg leading-snug">
-                      {title}
-                    </CardTitle>
+                    <CardTitle className="text-lg leading-snug">{t(titleKey)}</CardTitle>
                     <CardDescription className="text-sm leading-relaxed">
-                      {description}
+                      {t(descKey)}
                     </CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardFooter className="border-border/60 bg-muted/10 mt-auto justify-end border-t px-6 py-4">
                 <Button asChild>
-                  <Link href={href}>{cta}</Link>
+                  <Link href={href}>{t(ctaKey)}</Link>
                 </Button>
               </CardFooter>
             </Card>

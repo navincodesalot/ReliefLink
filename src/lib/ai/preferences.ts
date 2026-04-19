@@ -2,6 +2,7 @@ import { cookies, headers } from "next/headers";
 
 import type { SessionContext } from "@/lib/ai/contracts";
 import { connectDb } from "@/lib/db";
+import { isSupportedLanguageTag } from "@/lib/i18n/languages";
 import { UserPreference } from "@/lib/models/UserPreference";
 
 const DEFAULT_LANGUAGE = "en";
@@ -15,19 +16,24 @@ const REGION_LANGUAGE_MAP: Record<string, string> = {
   "US-SOUTH": "en",
   "MX-NORTH": "es",
   "BR-NORTH": "pt",
-  "KE-NORTH": "sw",
-  "IN-NORTH": "hi",
+  "KE-NORTH": "en",
+  "IN-NORTH": "en",
   "FR-WEST": "fr",
   "DE-CENTRAL": "de",
-  "SA-CENTRAL": "ar",
-  "UA-CENTRAL": "uk",
+  "SA-CENTRAL": "en",
+  "UA-CENTRAL": "en",
 };
 
 function normalizeLanguage(raw?: string | null): string | null {
   if (!raw) return null;
   const trimmed = raw.trim().toLowerCase();
   if (!trimmed) return null;
-  return trimmed.split(",")[0]?.split("-")[0] ?? null;
+  const first = trimmed.split(",")[0]?.trim() ?? "";
+  if (!first) return null;
+  if (isSupportedLanguageTag(first)) return first;
+  const primary = first.split("-")[0] ?? "";
+  if (primary && isSupportedLanguageTag(primary)) return primary;
+  return null;
 }
 
 function inferRegion(country: string, rawRegion: string | null): string {

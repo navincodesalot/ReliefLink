@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { requireAdminApi } from "@/lib/auth/require-admin";
 import { csvRow } from "@/lib/csv";
 import { connectDb } from "@/lib/db";
 import { FoodInventoryModel } from "@/lib/models/FoodInventory";
@@ -24,6 +25,9 @@ function fileStamp(): string {
 }
 
 export async function GET(req: Request) {
+  const auth = await requireAdminApi();
+  if (!auth.ok) return auth.response;
+
   const { searchParams } = new URL(req.url);
   const resource = searchParams.get("resource")?.trim();
   const format = searchParams.get("format")?.trim()?.toLowerCase();

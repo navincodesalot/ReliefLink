@@ -45,7 +45,7 @@ const SAMPLE_PROMPTS = [
 ];
 
 export function AiOperationsPanel() {
-  const { language, region, t } = useLanguage();
+  const { language, t } = useLanguage();
   const [prompt, setPrompt] = useState(SAMPLE_PROMPTS[0] ?? "");
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<AiResponse | null>(null);
@@ -80,9 +80,7 @@ export function AiOperationsPanel() {
     <Card className="border-primary/15 bg-gradient-to-br from-background via-background to-secondary/30">
       <CardHeader>
         <CardTitle className="text-base">{t("coordinatorQuery")}</CardTitle>
-        <CardDescription>
-          {t("coordinatorHint")} Region: <span className="font-medium text-foreground">{region}</span>
-        </CardDescription>
+        <CardDescription>{t("coordinatorHint")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap gap-2">

@@ -1,53 +1,24 @@
+/**
+ * Supported UI locales (IETF BCP 47). All strings are in `bundles.ts` — no runtime MT.
+ * Filipino uses the ISO 639-1 code `fil`.
+ */
 export const LANGUAGE_OPTIONS = [
   ["en", "English"],
-  ["es", "Espanol"],
-  ["fr", "Francais"],
-  ["pt", "Portugues"],
   ["de", "Deutsch"],
-  ["it", "Italiano"],
-  ["nl", "Nederlands"],
-  ["pl", "Polski"],
+  ["fr", "Français"],
+  ["pt", "Português"],
+  ["zh", "中文（简体）"],
+  ["cs", "Čeština"],
+  ["fil", "Filipino"],
+  ["sk", "Slovenčina"],
+  ["es", "Español"],
   ["sv", "Svenska"],
-  ["no", "Norsk"],
-  ["da", "Dansk"],
-  ["fi", "Suomi"],
-  ["ro", "Romana"],
-  ["cs", "Cestina"],
-  ["sk", "Slovencina"],
-  ["hu", "Magyar"],
-  ["el", "Ellinika"],
-  ["tr", "Turkce"],
-  ["uk", "Ukrainian"],
-  ["ru", "Russkiy"],
-  ["ar", "Arabic"],
-  ["he", "Hebrew"],
-  ["fa", "Farsi"],
-  ["ur", "Urdu"],
-  ["hi", "Hindi"],
-  ["bn", "Bangla"],
-  ["ta", "Tamil"],
-  ["te", "Telugu"],
-  ["ml", "Malayalam"],
-  ["mr", "Marathi"],
-  ["gu", "Gujarati"],
-  ["pa", "Punjabi"],
-  ["ne", "Nepali"],
-  ["si", "Sinhala"],
-  ["th", "Thai"],
-  ["vi", "Tieng Viet"],
-  ["id", "Bahasa Indonesia"],
-  ["ms", "Bahasa Melayu"],
-  ["tl", "Filipino"],
-  ["sw", "Kiswahili"],
-  ["am", "Amharic"],
-  ["so", "Somali"],
-  ["ha", "Hausa"],
-  ["yo", "Yoruba"],
-  ["ig", "Igbo"],
-  ["zu", "isiZulu"],
-  ["xh", "isiXhosa"],
-  ["ko", "Korean"],
-  ["ja", "Japanese"],
-  ["zh", "Chinese"],
-  ["zh-tw", "Chinese Traditional"],
 ] as const;
+
+export type SupportedLanguageTag = (typeof LANGUAGE_OPTIONS)[number][0];
+
+const TAGS = new Set<string>(LANGUAGE_OPTIONS.map(([code]) => code));
+
+export function isSupportedLanguageTag(tag: string): tag is SupportedLanguageTag {
+  return TAGS.has(tag);
+}

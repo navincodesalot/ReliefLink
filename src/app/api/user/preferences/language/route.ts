@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const BodySchema = z.object({
-  language: z.string().trim().min(2).max(8).nullable(),
+  language: z.string().trim().min(2).max(12).nullable(),
 });
 
 export async function PUT(req: Request) {

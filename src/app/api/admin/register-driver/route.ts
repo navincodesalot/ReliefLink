@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { requireAdminApi } from "@/lib/auth/require-admin";
 import { connectDb } from "@/lib/db";
 import { UserModel } from "@/lib/models/User";
 
 /**
- * Register a new driver. Demo-mode (no auth): anyone who knows the URL can
- * add a driver. Password/email are optional since sign-in is removed — a
- * placeholder email is generated when missing so the unique index still holds.
+ * Register a new driver. Requires an authenticated admin session cookie.
+ * Password/email are optional — a placeholder email is generated when missing
+ * so the unique index still holds.
  */
 const bodySchema = z.object({
   email: z.string().email().optional(),
@@ -23,6 +24,9 @@ const DUMMY_PASSWORD_HASH =
   "$2a$10$noLoginNoPasswordDummyHashStringXXXXXXXXXXXXXXXXXXXXXXXX";
 
 export async function POST(req: Request) {
+  const auth = await requireAdminApi();
+  if (!auth.ok) return auth.response;
+
   let json: unknown;
   try {
     json = await req.json();

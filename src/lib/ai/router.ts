@@ -7,6 +7,8 @@ import { callGemini } from "@/lib/ai/gemini";
 import { executeOpsTool } from "@/lib/ai/ops-tools";
 import { computeRiskSignals } from "@/lib/ai/risk";
 import { buildVoiceAlert } from "@/lib/ai/voice";
+import { STATIC_UI_LANGUAGES } from "@/lib/i18n/bundles";
+import { translateTextOllama } from "@/lib/i18n/ollama-translate";
 import type { ShipmentJSON, TransferEventJSON } from "@/lib/types";
 
 function parseStatus(text: string) {
@@ -20,6 +22,10 @@ function parseStatus(text: string) {
 
 async function maybeTranslate(text: string, language: string) {
   if (language === "en") return text;
+  if (!STATIC_UI_LANGUAGES.has(language)) {
+    const local = await translateTextOllama(text, language);
+    if (local) return local;
+  }
   const translated = await callGemini({
     prompt: text,
     language,
@@ -358,7 +364,7 @@ export async function handleAiQuery(input: {
     return {
       route: "ai_tool_plan",
       language: input.session.resolvedLanguage,
-      title: "Coordinator query",
+      title: "Questions",
       summary: await maybeTranslate(
         "The request was interpreted and resolved through operational data tools.",
         input.session.resolvedLanguage,
@@ -382,7 +388,7 @@ export async function handleAiQuery(input: {
   return {
     route: "ai_response",
     language: input.session.resolvedLanguage,
-    title: "Coordinator query",
+    title: "Questions",
     summary:
       gemini.response.language === input.session.resolvedLanguage
         ? gemini.response.text

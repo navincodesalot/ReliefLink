@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ExternalLink, Link2 } from "lucide-react";
 
+import { useLanguage } from "@/components/language-provider";
 import { PageBackdrop } from "@/components/page-backdrop";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,6 +17,7 @@ import {
 import type { ShipmentJSON } from "@/lib/types";
 
 export function PublicChainView() {
+  const { t } = useLanguage();
   const [shipments, setShipments] = useState<ShipmentJSON[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,20 +45,16 @@ export function PublicChainView() {
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-2">
             <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
-              Public transparency
+              {t("trackEyebrow")}
             </p>
             <h1 className="text-balance text-3xl font-semibold tracking-tight md:text-4xl">
-              Solana chain of custody
+              {t("trackTitle")}
             </h1>
-            <p className="max-w-2xl text-sm text-muted-foreground">
-              Every verified handoff is anchored on Solana testnet. Below are shipments with
-              on-chain memo signatures you can verify independently—no sign-in required.
-            </p>
+            <p className="max-w-2xl text-sm text-muted-foreground">{t("trackSubtitle")}</p>
           </div>
           <div className="flex items-center gap-2">
-            <ThemeToggle />
             <Button variant="outline" size="sm" asChild>
-              <Link href="/">← Home</Link>
+              <Link href="/">← {t("navHome")}</Link>
             </Button>
           </div>
         </header>
@@ -70,7 +67,7 @@ export function PublicChainView() {
 
         <div className="space-y-4">
           {shipments.length === 0 && !error ? (
-            <p className="text-sm text-muted-foreground">Loading public ledger…</p>
+            <p className="text-sm text-muted-foreground">{t("trackLoading")}</p>
           ) : null}
           {shipments.map((s) => (
             <Card

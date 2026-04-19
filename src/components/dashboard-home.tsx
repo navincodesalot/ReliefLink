@@ -6,7 +6,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Activity, Network, Truck } from "lucide-react";
 
 import { AiOperationsPanel } from "@/components/ai-operations-panel";
-import { LanguageToggle } from "@/components/language-toggle";
 import { useLanguage } from "@/components/language-provider";
 import { Button } from "@/components/ui/button";
 import {
@@ -165,7 +164,6 @@ export function DashboardHome({ mode, driversRefreshKey }: DashboardHomeProps) {
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{subtitle}</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <LanguageToggle />
           {!readOnly ? (
             <Link href="/driver">
               <Button variant="outline" size="sm">

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { requireAdminApi } from "@/lib/auth/require-admin";
 import { connectDb } from "@/lib/db";
 import { HardwareRegistrationModel } from "@/lib/models/HardwareRegistration";
 
@@ -12,6 +13,9 @@ const bodySchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const auth = await requireAdminApi();
+  if (!auth.ok) return auth.response;
+
   let json: unknown;
   try {
     json = await req.json();
