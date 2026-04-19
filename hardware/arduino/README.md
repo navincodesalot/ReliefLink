@@ -2,8 +2,9 @@
 
 ReliefLink anchors custody handoffs between nodes in a supply network. A
 **driver** board (USB to the operator's laptop) and a battery-powered **store
-beacon** share a single copper "tap" line: touching the two copper pads
-completes a circuit to their common GND. Both boards detect the contact; the
+beacon** share copper “tap” pads. The **driver** treats a tap as **5 V**
+present on D2 (active-high); the **store** still uses pull-up and detects
+contact as **LOW** on D2. Both boards see the same physical touch; the
 **driver** emits `TAP` over USB serial, the **store** waits 3 seconds and
 then buzzes.
 
@@ -14,25 +15,40 @@ store identity ever travels on the wire.
 
 | Board | Folder | Power | Sends |
 | ----- | ------ | ----- | ----- |
-| Driver tag | [`driver_tag/driver_tag.ino`](./driver_tag/driver_tag.ino) | USB (from laptop) | `TAP\n` over serial on contact |
+| Driver tag | [`driver_tag/driver_tag.ino`](./driver_tag/driver_tag.ino) | USB (from laptop) | `TAP\n` on contact, then short ack beep on **D11** |
 | Store beacon | [`store_beacon/store_beacon.ino`](./store_beacon/store_beacon.ino) | 9V battery | Optional Grove RGB LCD shows tap / countdown / done; buzzes after 3s |
 
 ## Wiring the shared tap
 
-Both boards share **one** ground and one copper pad each. Bringing the two
-pads into contact closes the circuit to their common GND:
+**Common GND** between the two Unos is required (same reference for the 5 V sense
+on the driver and the store’s supply).
+
+### Driver (`driver_tag.ino`)
+
+- **D2** = `INPUT` — **not** `INPUT_PULLUP`.
+- **10 kΩ** from **D2 → GND** so the pin is a solid **LOW** when the pads are
+  open (Uno has no internal pull-down).
+- One copper pad wires to **D2**; the other pad, on the store side, should
+  present **5 V** when they touch so **D2 reads HIGH** → debounced `TAP`, then
+  ack beep on D11.
+- Tie **GND** to the store’s ground.
+
+### Store (`store_beacon.ino`)
+
+- **D2** = `INPUT_PULLUP` — contact that pulls the pad to **GND** reads as
+  **LOW** (unchanged).
 
 ```
-Driver Uno   D2 ─────┐                     ┌───── D2   Store Uno
-(USB power)          │   copper pads       │         (battery power)
-           GND ──────┴────────[ GND bus ]──┴────── GND
+        Driver Uno                          Store Uno (battery)
+        D2 ── pad A    ═══ touch ═══    pad B ── 5V (when wired that way)
+         │                                    │
+        10k                                    D2 (INPUT_PULLUP → GND when tap)
+         │
+        GND ═══════════════ common GND ═══════════════ GND
 ```
 
-- **D2** on each board uses `INPUT_PULLUP` — pressed / in contact = `LOW`.
-- **Common GND** is essential; without it the two boards can't agree that the
-  copper pads are at the same potential.
-- Mount the pads a few millimetres apart so they only complete the circuit
-  when pressed together.
+Mount pads so they only meet when pressed together. If D2 floats without the
+10 kΩ pull-down, you will get garbage reads.
 
 ## Store Arduino — Grove RGB LCD + buzzer
 
@@ -52,7 +68,9 @@ Stages on the LCD:
 - LED on **D13** flashes during the 3-second count, then stays on while the
   buzzer sounds.
 
-The **driver** board has no LCD; it only sends `TAP` over USB for the bridge.
+The **driver** board has no LCD. It sends `TAP` over USB for the bridge, then
+after ~280ms plays one passive-buzzer beep on **D11** so the operator hears
+local confirmation (independent of the store beacon).
 
 ## USB bridge (driver laptop)
 

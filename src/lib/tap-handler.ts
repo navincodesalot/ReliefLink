@@ -29,15 +29,27 @@ async function resolveContext(
   | { ok: false; status: number; error: string }
 > {
   if (input.source === "hardware_tap") {
-    const leg = await ShipmentLeg.findOne({
+    let leg = await ShipmentLeg.findOne({
       driverDeviceId: input.deviceId,
       status: "in_transit",
     }).sort({ index: 1 });
+
+    /** USB store beacon: EEPROM id matches destination node's deviceId */
+    if (!leg) {
+      const dest = await NodeModel.findOne({ deviceId: input.deviceId });
+      if (dest) {
+        leg = await ShipmentLeg.findOne({
+          toNodeId: dest.nodeId,
+          status: "in_transit",
+        }).sort({ index: 1 });
+      }
+    }
+
     if (!leg) {
       return {
         ok: false,
         status: 404,
-        error: `no active leg assigned to device ${input.deviceId}`,
+        error: `no active leg for device ${input.deviceId} (driver or destination node)`,
       };
     }
     const shipment = await Shipment.findOne({ shipmentId: leg.shipmentId });

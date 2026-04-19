@@ -1,46 +1,19 @@
-/**
- * ReliefLink driver_tag — USB-connected Arduino Uno
- *
- * Copper pad on D2; contact with the store beacon pulls LOW (INPUT_PULLUP).
- * On debounced closure, prints `TAP\n` over USB. The bridge forwards to the
- * server; the server resolves the leg from this driver's deviceId only.
- *
- * Wiring: Tap pad -> D2, GND shared with store beacon on the tap line.
- */
-
-#include <Arduino.h>
-
-static const uint8_t PIN_TAP = 2;
-static const unsigned long DEBOUNCE_MS = 30;
-static const unsigned long COOLDOWN_MS = 800;
-
-static int lastReading = HIGH;
-static int stableState = HIGH;
-static unsigned long lastChangeMs = 0;
-static unsigned long lastTapMs = 0;
+const int buttonPin = 2;
+const int buzzerPin = 11;
 
 void setup() {
-  pinMode(PIN_TAP, INPUT_PULLUP);
-  Serial.begin(115200);
-  Serial.println(F("[driver_tag] ready"));
+  Serial.begin(9600);
+  pinMode(buttonPin, INPUT_PULLUP);
+  pinMode(buzzerPin, OUTPUT);
 }
 
 void loop() {
-  const int reading = digitalRead(PIN_TAP);
-  const unsigned long now = millis();
+  int buttonState = digitalRead(buttonPin);
 
-  if (reading != lastReading) {
-    lastChangeMs = now;
-    lastReading = reading;
-  }
-
-  if ((now - lastChangeMs) > DEBOUNCE_MS && reading != stableState) {
-    stableState = reading;
-    if (stableState == LOW) {
-      if ((now - lastTapMs) > COOLDOWN_MS) {
-        lastTapMs = now;
-        Serial.println(F("TAP"));
-      }
-    }
+  if (buttonState == LOW) { // button pressed (grounded)
+    Serial.println("Button pressed!");
+    digitalWrite(buzzerPin, HIGH); // turn buzzer on
+  } else {
+    digitalWrite(buzzerPin, LOW);  // turn buzzer off
   }
 }

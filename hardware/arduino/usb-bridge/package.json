@@ -2,7 +2,7 @@
   "name": "relieflink-usb-bridge",
   "private": true,
   "type": "module",
-  "description": "Reads `TAP` lines from the driver Arduino over USB serial and POSTs ReliefLink /api/transfer with HMAC.",
+  "description": "Reads ReliefLink store serial lines (RELIEFLINK_TAP, READY) and POSTs /api/devices/register + /api/transfer with HMAC.",
   "engines": {
     "node": ">=20"
   },
