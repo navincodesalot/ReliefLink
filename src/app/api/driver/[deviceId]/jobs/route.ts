@@ -20,7 +20,16 @@ export async function GET(
   const { deviceId } = await params;
   await connectDb();
 
-  const [selfNode, activeLeg, nextLeg] = await Promise.all([
+  /**
+   * Keep just-completed legs around for ~60s so the driver UI can show the
+   * "Leg complete" celebration and Solana anchor before flipping to "no active
+   * assignment" (especially for single-leg shipments where tapping removes the
+   * only in_transit leg).
+   */
+  const RECENT_DONE_WINDOW_MS = 60_000;
+  const recentDoneSince = new Date(Date.now() - RECENT_DONE_WINDOW_MS);
+
+  const [selfNode, activeLeg, nextLeg, recentDoneLeg] = await Promise.all([
     NodeModel.findOne({ deviceId }),
     ShipmentLeg.findOne({ driverDeviceId: deviceId, status: "in_transit" }).sort({
       index: 1,
@@ -28,9 +37,14 @@ export async function GET(
     ShipmentLeg.findOne({ driverDeviceId: deviceId, status: "pending" }).sort({
       index: 1,
     }),
+    ShipmentLeg.findOne({
+      driverDeviceId: deviceId,
+      status: "done",
+      completedAt: { $gte: recentDoneSince },
+    }).sort({ completedAt: -1 }),
   ]);
 
-  const leg = activeLeg ?? nextLeg ?? null;
+  const leg = activeLeg ?? nextLeg ?? recentDoneLeg ?? null;
   if (!leg) {
     return NextResponse.json({
       deviceId,
@@ -61,6 +75,8 @@ export async function GET(
     message:
       leg.status === "in_transit"
         ? `Deliver ${leg.fromNodeId} -> ${leg.toNodeId}. Tap beacon on arrival.`
-        : `Leg queued: ${leg.fromNodeId} -> ${leg.toNodeId}.`,
+        : leg.status === "done"
+          ? `Leg delivered: ${leg.fromNodeId} -> ${leg.toNodeId}.`
+          : `Leg queued: ${leg.fromNodeId} -> ${leg.toNodeId}.`,
   });
 }

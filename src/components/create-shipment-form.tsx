@@ -18,16 +18,11 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { NodeJSON, ShipmentJSON } from "@/lib/types";
-
-type DriverRow = {
-  driverDeviceId: string;
-  name: string;
-  email: string;
-};
+import type { DriverListItem, NodeJSON, ShipmentJSON } from "@/lib/types";
 
 type Props = {
   nodes: NodeJSON[];
+  drivers: DriverListItem[];
   onCreated: (shipment: ShipmentJSON) => void;
 };
 
@@ -35,7 +30,9 @@ function nodeLabel(n: NodeJSON) {
   return `${n.name} (${n.kind})`;
 }
 
-export function CreateShipmentForm({ nodes, onCreated }: Props) {
+type InventoryLine = { item: string; quantity: number; unit?: string };
+
+export function CreateShipmentForm({ nodes, drivers, onCreated }: Props) {
   const [origin, setOrigin] = useState<string>("");
   const [destination, setDestination] = useState<string>("");
   const [description, setDescription] = useState("");
@@ -44,20 +41,99 @@ export function CreateShipmentForm({ nodes, onCreated }: Props) {
   const [driverDeviceId, setDriverDeviceId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [drivers, setDrivers] = useState<DriverRow[]>([]);
+
+  const [inventoryNeed, setInventoryNeed] = useState<InventoryLine[]>([]);
+  const [inventoryWant, setInventoryWant] = useState<InventoryLine[]>([]);
+  const [inventoryLoading, setInventoryLoading] = useState(false);
+  const [inventoryPick, setInventoryPick] = useState("");
+
+  const destinationNode = useMemo(
+    () => (destination ? nodes.find((n) => n.nodeId === destination) : undefined),
+    [nodes, destination],
+  );
+  const destinationIsWarehouse = destinationNode?.kind === "warehouse";
 
   useEffect(() => {
+    setInventoryPick("");
+    setInventoryNeed([]);
+    setInventoryWant([]);
+    if (!destination || !destinationIsWarehouse) return;
+
     let cancelled = false;
+    setInventoryLoading(true);
     void (async () => {
-      const res = await fetch("/api/drivers", { cache: "no-store" });
-      if (!res.ok || cancelled) return;
-      const d = (await res.json()) as { drivers: DriverRow[] };
-      setDrivers(d.drivers);
+      try {
+        const res = await fetch(
+          `/api/warehouse/inventory?warehouseNodeId=${encodeURIComponent(destination)}`,
+          { cache: "no-store" },
+        );
+        const data = (await res.json()) as {
+          need?: InventoryLine[];
+          want?: InventoryLine[];
+          error?: unknown;
+        };
+        if (!res.ok) throw new Error("Could not load warehouse inventory.");
+        if (cancelled) return;
+        setInventoryNeed(Array.isArray(data.need) ? data.need : []);
+        setInventoryWant(Array.isArray(data.want) ? data.want : []);
+      } catch {
+        if (!cancelled) {
+          setInventoryNeed([]);
+          setInventoryWant([]);
+          toast.error("Could not load inventory for this destination.");
+        }
+      } finally {
+        if (!cancelled) setInventoryLoading(false);
+      }
     })();
+
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [destination, destinationIsWarehouse]);
+
+  const inventoryOptions: SearchOption[] = useMemo(() => {
+    const out: SearchOption[] = [];
+    inventoryNeed.forEach((line, i) => {
+      const unit = line.unit?.trim();
+      out.push({
+        value: `need:${i}`,
+        label: line.item,
+        description: `Need · ${line.quantity}${unit ? ` ${unit}` : ""}`,
+        keywords: [line.item, "need", "urgent"],
+      });
+    });
+    inventoryWant.forEach((line, i) => {
+      const unit = line.unit?.trim();
+      out.push({
+        value: `want:${i}`,
+        label: line.item,
+        description: `Want · ${line.quantity}${unit ? ` ${unit}` : ""}`,
+        keywords: [line.item, "want", "planned"],
+      });
+    });
+    return out;
+  }, [inventoryNeed, inventoryWant]);
+
+  function applyInventoryPick(key: string) {
+    setInventoryPick(key);
+    if (!key) return;
+    const [bucket, idxStr] = key.split(":");
+    const idx = Number.parseInt(idxStr ?? "", 10);
+    if ((bucket !== "need" && bucket !== "want") || Number.isNaN(idx)) return;
+    const line = bucket === "need" ? inventoryNeed[idx] : inventoryWant[idx];
+    if (!line) return;
+    const unit = line.unit?.trim();
+    const qtyLabel =
+      line.quantity > 0 ? `${line.quantity}${unit ? ` ${unit}` : ""}` : "";
+    setCargo(line.item);
+    setDescription(
+      bucket === "need"
+        ? `Urgent need: ${line.item}${qtyLabel ? ` (${qtyLabel})` : ""}`
+        : `Planned intake: ${line.item}${qtyLabel ? ` (${qtyLabel})` : ""}`,
+    );
+    setQuantity(line.quantity > 0 ? String(line.quantity) : "");
+  }
 
   const originOptions: SearchOption[] = useMemo(
     () =>
@@ -128,6 +204,7 @@ export function CreateShipmentForm({ nodes, onCreated }: Props) {
       setDescription("");
       setCargo("");
       setQuantity("");
+      setInventoryPick("");
       setDriverDeviceId("");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "failed";
@@ -175,6 +252,35 @@ export function CreateShipmentForm({ nodes, onCreated }: Props) {
               clearable
             />
           </div>
+
+          {destinationIsWarehouse ? (
+            <div className="space-y-1.5 md:col-span-2">
+              <Label htmlFor="ship-inv-pick">Goods from destination inventory</Label>
+              <SearchableSelect
+                id="ship-inv-pick"
+                options={inventoryOptions}
+                value={inventoryPick}
+                onChange={applyInventoryPick}
+                disabled={inventoryLoading || inventoryOptions.length === 0}
+                placeholder={
+                  inventoryLoading
+                    ? "Loading inventory…"
+                    : inventoryOptions.length === 0
+                      ? "No need/want lines saved for this warehouse yet"
+                      : "Search items from need & want lists…"
+                }
+                searchPlaceholder="Search items…"
+                emptyMessage="No matching inventory lines."
+                clearable
+              />
+              <p className="text-xs text-muted-foreground">
+                Uses the warehouse&apos;s saved{" "}
+                <span className="font-medium">Need</span> and{" "}
+                <span className="font-medium">Want</span> lists. Choosing a row fills
+                description, cargo, and quantity; you can edit them afterward.
+              </p>
+            </div>
+          ) : null}
 
           <div className="space-y-1.5 md:col-span-2">
             <Label htmlFor="ship-desc">Description</Label>

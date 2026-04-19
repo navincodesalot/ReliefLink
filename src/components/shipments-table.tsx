@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { runStagedLedgerUi } from "@/lib/staged-ledger-ui";
 import type {
+  DriverListItem,
   NodeJSON,
   ShipmentJSON,
   ShipmentLegJSON,
@@ -19,15 +20,10 @@ import type {
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-type DriverRow = {
-  driverDeviceId: string;
-  name: string;
-  email: string;
-};
-
 type Props = {
   shipments: ShipmentJSON[];
   nodes: NodeJSON[];
+  drivers: DriverListItem[];
   onTap?: (shipmentId: string, legIndex: number) => void;
   onChanged?: () => void;
   readOnly?: boolean;
@@ -49,6 +45,7 @@ function formatTime(iso: string) {
 export function ShipmentsTable({
   shipments,
   nodes,
+  drivers,
   onTap,
   onChanged,
   readOnly = false,
@@ -60,21 +57,6 @@ export function ShipmentsTable({
   const [details, setDetails] = useState<Record<string, ShipmentDetail>>({});
   const [tapping, setTapping] = useState<string | null>(null);
   const [assignBusy, setAssignBusy] = useState<string | null>(null);
-  const [drivers, setDrivers] = useState<DriverRow[]>([]);
-
-  useEffect(() => {
-    if (readOnly) return;
-    let cancelled = false;
-    void (async () => {
-      const res = await fetch("/api/drivers", { cache: "no-store" });
-      if (!res.ok || cancelled) return;
-      const d = (await res.json()) as { drivers: DriverRow[] };
-      setDrivers(d.drivers);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [readOnly]);
 
   const driverOptions: SearchOption[] = drivers.map((d) => ({
     value: d.driverDeviceId,

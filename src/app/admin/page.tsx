@@ -1,6 +1,4 @@
-import { AdminEmergenciesPanel } from "@/components/admin-emergencies-panel";
-import { AdminRegisterDriverCard } from "@/components/admin-register-driver-card";
-import { DashboardHome } from "@/components/dashboard-home";
+import { AdminConsole } from "@/components/admin-console";
 
 export default function AdminPage() {
   return (
@@ -20,9 +18,7 @@ export default function AdminPage() {
           </p>
         </header>
         <div className="mx-auto max-w-7xl space-y-8">
-          <AdminEmergenciesPanel />
-          <AdminRegisterDriverCard />
-          <DashboardHome mode="admin" />
+          <AdminConsole />
         </div>
       </div>
     </div>

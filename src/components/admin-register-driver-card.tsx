@@ -16,7 +16,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { runStagedLedgerUi } from "@/lib/staged-ledger-ui";
 
-export function AdminRegisterDriverCard() {
+type Props = {
+  onRegistered?: () => void;
+};
+
+export function AdminRegisterDriverCard({ onRegistered }: Props) {
   const [name, setName] = useState("");
   const [deviceId, setDeviceId] = useState("");
   const [email, setEmail] = useState("");
@@ -60,6 +64,7 @@ export function AdminRegisterDriverCard() {
       setName("");
       setDeviceId("");
       setEmail("");
+      onRegistered?.();
     } catch {
       // toast already surfaced
     } finally {

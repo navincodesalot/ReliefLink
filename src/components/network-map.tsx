@@ -137,6 +137,7 @@ export function NetworkMap({ nodes, shipments, driverLocations }: Props) {
     };
     const segs: Segment[] = [];
     for (const s of shipments) {
+      if (s.status === "delivered") continue;
       const pts = s.nodeRoute
         .map((id) => byId.get(id))
         .filter((n): n is NodeJSON => Boolean(n))

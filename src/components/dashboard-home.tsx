@@ -19,7 +19,7 @@ import { PendingDeviceOnboardingModal } from "@/components/pending-device-onboar
 import type { DriverLocationPin } from "@/components/network-map";
 import { ShipmentsTable } from "@/components/shipments-table";
 import type { ReliefLinkRole } from "@/lib/roles";
-import type { NodeJSON, ShipmentJSON } from "@/lib/types";
+import type { DriverListItem, NodeJSON, ShipmentJSON } from "@/lib/types";
 
 const NetworkMap = dynamic(
   () => import("@/components/network-map").then((m) => m.NetworkMap),
@@ -42,16 +42,20 @@ type DashboardHomeProps = {
   mode: DashboardMode;
   /** @deprecated kept for backwards compat; no longer used after auth removal. */
   sessionRole?: ReliefLinkRole;
+  /** Admin: increment after registering a driver so dropdowns refetch immediately. */
+  driversRefreshKey?: number;
 };
 
-export function DashboardHome({ mode }: DashboardHomeProps) {
+export function DashboardHome({ mode, driversRefreshKey }: DashboardHomeProps) {
   const readOnly = mode === "readonly";
   const [nodes, setNodes] = useState<NodeJSON[]>([]);
   const [shipments, setShipments] = useState<ShipmentJSON[]>([]);
   const [driverPins, setDriverPins] = useState<DriverLocationPin[]>([]);
+  const [drivers, setDrivers] = useState<DriverListItem[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const prevDriversRefreshKey = useRef(driversRefreshKey ?? 0);
 
   const loadAll = useCallback(async () => {
     const showDrivers = mode !== "readonly";
@@ -85,8 +89,16 @@ export function DashboardHome({ mode }: DashboardHomeProps) {
             })),
           );
         }
+        const dr = await fetch("/api/drivers", { cache: "no-store" });
+        if (dr.ok) {
+          const dd = (await dr.json()) as { drivers: DriverListItem[] };
+          setDrivers(dd.drivers);
+        } else {
+          setDrivers([]);
+        }
       } else {
         setDriverPins([]);
+        setDrivers([]);
       }
 
       setError(null);
@@ -104,6 +116,13 @@ export function DashboardHome({ mode }: DashboardHomeProps) {
       if (pollTimer.current) clearInterval(pollTimer.current);
     };
   }, [loadAll]);
+
+  const refreshKey = driversRefreshKey ?? 0;
+  useEffect(() => {
+    if (prevDriversRefreshKey.current === refreshKey) return;
+    prevDriversRefreshKey.current = refreshKey;
+    void loadAll();
+  }, [refreshKey, loadAll]);
 
   const pending = useMemo(() => nodes.filter((n) => n.pendingOnboarding), [nodes]);
   const activeCount = useMemo(
@@ -231,7 +250,11 @@ export function DashboardHome({ mode }: DashboardHomeProps) {
 
         {!readOnly ? (
           <div className="space-y-6">
-            <CreateShipmentForm nodes={nodes} onCreated={() => void loadAll()} />
+            <CreateShipmentForm
+              nodes={nodes}
+              drivers={drivers}
+              onCreated={() => void loadAll()}
+            />
             <CreateNodeForm onCreated={() => void loadAll()} />
           </div>
         ) : null}
@@ -250,6 +273,7 @@ export function DashboardHome({ mode }: DashboardHomeProps) {
           <ShipmentsTable
             shipments={shipments}
             nodes={nodes}
+            drivers={drivers}
             onTap={() => void loadAll()}
             onChanged={() => void loadAll()}
             readOnly={readOnly}

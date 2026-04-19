@@ -77,6 +77,13 @@ export type TransferEventJSON = {
   notes: string | null;
 };
 
+/** Row from `GET /api/drivers` for admin/warehouse dropdowns. */
+export type DriverListItem = {
+  driverDeviceId: string;
+  name: string;
+  email: string;
+};
+
 export type DriverJobJSON = {
   deviceId: string;
   assignedNodeId: string | null;

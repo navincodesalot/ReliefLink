@@ -45,7 +45,6 @@ export function DriverConsole() {
   const [error, setError] = useState<string | null>(null);
   const [livePos, setLivePos] = useState<{ lat: number; lng: number } | null>(null);
   const [geoHint, setGeoHint] = useState<string | null>(null);
-  const previousLegStatus = useRef<string | null>(null);
   const celebratedLegKey = useRef<string | null>(null);
 
   useEffect(() => {
@@ -123,26 +122,16 @@ export function DriverConsole() {
 
   useEffect(() => {
     const leg = job?.leg;
-    if (!leg) {
-      previousLegStatus.current = null;
-      return;
-    }
+    if (!leg || leg.status !== "done") return;
     const key = `${job?.shipment?.shipmentId ?? "?"}:${leg.index}`;
-    const prev = previousLegStatus.current;
-    previousLegStatus.current = leg.status;
-    if (
-      prev === "in_transit" &&
-      leg.status === "done" &&
-      celebratedLegKey.current !== key
-    ) {
-      celebratedLegKey.current = key;
-      void fireCelebration();
-      toast.success("Handoff anchored on Solana.", {
-        description: leg.solanaExplorerUrl
-          ? "View the signed leg on Solana Explorer."
-          : "The leg is complete.",
-      });
-    }
+    if (celebratedLegKey.current === key) return;
+    celebratedLegKey.current = key;
+    void fireCelebration();
+    toast.success("Handoff anchored on Solana.", {
+      description: leg.solanaExplorerUrl
+        ? "View the signed leg on Solana Explorer."
+        : "The leg is complete.",
+    });
   }, [job]);
 
   function chooseDriver(id: string) {
@@ -167,7 +156,6 @@ export function DriverConsole() {
     setDeviceId("");
     setJob(null);
     celebratedLegKey.current = null;
-    previousLegStatus.current = null;
     if (typeof window !== "undefined") window.localStorage.removeItem(STORAGE_KEY);
   }
 
