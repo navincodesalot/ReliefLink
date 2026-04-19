@@ -1,7 +1,7 @@
 "use client";
 
 import { type FormEvent, useEffect, useMemo, useState } from "react";
-import { PackagePlus, X } from "lucide-react";
+import { PackagePlus } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -38,7 +38,6 @@ function nodeLabel(n: NodeJSON) {
 export function CreateShipmentForm({ nodes, onCreated }: Props) {
   const [origin, setOrigin] = useState<string>("");
   const [destination, setDestination] = useState<string>("");
-  const [waypoints, setWaypoints] = useState<string[]>([]);
   const [description, setDescription] = useState("");
   const [cargo, setCargo] = useState("");
   const [quantity, setQuantity] = useState("");
@@ -84,28 +83,6 @@ export function CreateShipmentForm({ nodes, onCreated }: Props) {
     [nodes],
   );
 
-  const waypointOptionsRaw = useMemo(
-    () =>
-      nodes.filter(
-        (n) =>
-          n.hasHardware &&
-          !n.pendingOnboarding &&
-          n.nodeId !== origin &&
-          n.nodeId !== destination,
-      ),
-    [nodes, origin, destination],
-  );
-
-  const usedWaypoints = new Set(waypoints);
-  const waypointOptions: SearchOption[] = waypointOptionsRaw
-    .filter((n) => !usedWaypoints.has(n.nodeId))
-    .map((n) => ({
-      value: n.nodeId,
-      label: nodeLabel(n),
-      description: n.nodeId,
-      keywords: [n.nodeId, n.kind],
-    }));
-
   const driverOptions: SearchOption[] = drivers.map((d) => ({
     value: d.driverDeviceId,
     label: d.name,
@@ -131,7 +108,6 @@ export function CreateShipmentForm({ nodes, onCreated }: Props) {
       const body = {
         originNodeId: origin,
         finalDestinationNodeId: destination,
-        waypoints: waypoints.filter(Boolean),
         description: description.trim() || undefined,
         cargo: cargo.trim() || undefined,
         quantity: quantity.trim() ? Number(quantity) : undefined,
@@ -152,7 +128,6 @@ export function CreateShipmentForm({ nodes, onCreated }: Props) {
       setDescription("");
       setCargo("");
       setQuantity("");
-      setWaypoints([]);
       setDriverDeviceId("");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "failed";
@@ -170,8 +145,8 @@ export function CreateShipmentForm({ nodes, onCreated }: Props) {
           <PackagePlus className="h-4 w-4" /> Create shipment
         </CardTitle>
         <CardDescription>
-          Multi-hop relief jobs. Destinations need an assigned device (real or simulated
-          via the tap button).
+          Relief jobs from origin to destination. Destinations need an assigned device
+          (real or simulated via the tap button).
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -199,47 +174,6 @@ export function CreateShipmentForm({ nodes, onCreated }: Props) {
               emptyMessage="No matching nodes."
               clearable
             />
-          </div>
-
-          <div className="space-y-1.5 md:col-span-2">
-            <Label>Waypoints (optional, in order)</Label>
-            <div className="space-y-2">
-              {waypoints.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {waypoints.map((w, i) => {
-                    const node = nodes.find((n) => n.nodeId === w);
-                    return (
-                      <span
-                        key={`${w}-${i}`}
-                        className="inline-flex items-center gap-1 rounded-md border bg-muted px-2 py-0.5 text-xs"
-                      >
-                        {node?.name ?? w}
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setWaypoints((prev) => prev.filter((_, idx) => idx !== i))
-                          }
-                          className="text-muted-foreground hover:text-foreground"
-                          aria-label={`remove ${w}`}
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </span>
-                    );
-                  })}
-                </div>
-              ) : null}
-              <SearchableSelect
-                options={waypointOptions}
-                value=""
-                onChange={(v) => {
-                  if (v) setWaypoints((prev) => [...prev, v]);
-                }}
-                placeholder="+ add waypoint…"
-                searchPlaceholder="Search nodes…"
-                emptyMessage="No more nodes to add."
-              />
-            </div>
           </div>
 
           <div className="space-y-1.5 md:col-span-2">
