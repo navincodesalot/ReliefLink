@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Activity, Network, Truck } from "lucide-react";
 
+import { AiOperationsPanel } from "@/components/ai-operations-panel";
+import { LanguageToggle } from "@/components/language-toggle";
+import { useLanguage } from "@/components/language-provider";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -35,6 +38,7 @@ function MapSkeleton() {
 const POLL_MS = 2500;
 
 export function DashboardHome() {
+  const { t } = useLanguage();
   const [nodes, setNodes] = useState<NodeJSON[]>([]);
   const [shipments, setShipments] = useState<ShipmentJSON[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -88,45 +92,46 @@ export function DashboardHome() {
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-widest text-muted-foreground">
-            Operations
+            {t("operations")}
           </p>
           <h1 className="text-3xl font-semibold tracking-tight">
-            ReliefLink <span className="text-muted-foreground">· Node Network</span>
+            ReliefLink <span className="text-muted-foreground">· {t("nodeNetwork")}</span>
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            UN-coordinated food aid routed through warehouses and local beacon
-            nodes. Every hop is cryptographically anchored on Solana testnet at
-            the moment of physical handoff.
+            {t("tagline")}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <LanguageToggle />
           <Link href="/driver">
             <Button variant="outline" size="sm">
-              <Truck className="h-4 w-4" /> Driver console
+              <Truck className="h-4 w-4" /> {t("driverConsole")}
             </Button>
           </Link>
         </div>
       </header>
 
       <section className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
-        <Stat icon={<Network className="h-4 w-4" />} label="Nodes" value={nodes.length} />
+        <Stat icon={<Network className="h-4 w-4" />} label={t("nodes")} value={nodes.length} />
         <Stat
           icon={<Activity className="h-4 w-4" />}
-          label="In transit"
+          label={t("inTransit")}
           value={activeCount}
         />
         <Stat
           icon={<Truck className="h-4 w-4" />}
-          label="Delivered"
+          label={t("delivered")}
           value={deliveredCount}
         />
         <Stat
           icon={<Activity className="h-4 w-4" />}
-          label="Flagged"
+          label={t("flagged")}
           value={flaggedCount}
           tone={flaggedCount > 0 ? "destructive" : "muted"}
         />
       </section>
+
+      <AiOperationsPanel />
 
       {error ? (
         <Card className="border-destructive/50">
@@ -147,10 +152,9 @@ export function DashboardHome() {
       <section className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <Card className="overflow-hidden">
           <CardHeader>
-            <CardTitle className="text-base">Live network map</CardTitle>
+            <CardTitle className="text-base">{t("liveNetworkMap")}</CardTitle>
             <CardDescription>
-              Warehouses in blue · beacon nodes in green · active routes in blue
-              dashed · completed legs in solid green.
+              {t("mapLegend")}
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
@@ -168,9 +172,9 @@ export function DashboardHome() {
 
       <section className="space-y-3">
         <div className="flex items-baseline justify-between">
-          <h2 className="text-xl font-semibold tracking-tight">Shipments</h2>
+          <h2 className="text-xl font-semibold tracking-tight">{t("shipments")}</h2>
           <span className="text-xs text-muted-foreground">
-            polling every {POLL_MS / 1000}s
+            {t("pollingEvery")} {POLL_MS / 1000}s
           </span>
         </div>
         {!loaded ? (
