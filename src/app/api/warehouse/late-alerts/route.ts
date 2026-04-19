@@ -5,7 +5,7 @@ import { NodeModel } from "@/lib/models/Node";
 import { ShipmentLeg } from "@/lib/models/ShipmentLeg";
 import { toShipmentLegJSON } from "@/lib/serialize";
 
-/** Legs inbound to this warehouse that are > 1.5× estimated duration since start. */
+/** Legs inbound to this node that are > 1.5× estimated duration since start. */
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const wid = searchParams.get("warehouseNodeId")?.trim();
@@ -17,7 +17,7 @@ export async function GET(req: Request) {
   await connectDb();
   const node = await NodeModel.findOne({ nodeId: wid });
   if (!node) {
-    return NextResponse.json({ error: "Unknown warehouse node." }, { status: 400 });
+    return NextResponse.json({ error: "Unknown node." }, { status: 400 });
   }
 
   const now = Date.now();

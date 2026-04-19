@@ -62,10 +62,10 @@ export function AdminEmergenciesPanel() {
   const open = rows.filter((r) => r.status !== "resolved");
 
   return (
-    <Card className="border-amber-500/30 bg-amber-500/5">
+    <Card className="border-amber-500/30 bg-amber-500/5 text-card-foreground dark:border-amber-500/25 dark:bg-amber-950/25">
       <CardHeader>
         <div className="flex items-center gap-2">
-          <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+          <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
           <CardTitle className="text-lg">Driver emergencies</CardTitle>
         </div>
         <CardDescription>
@@ -82,13 +82,13 @@ export function AdminEmergenciesPanel() {
             .map((r) => (
             <li
               key={r.id}
-              className="rounded-lg border bg-card/80 p-4 text-sm shadow-sm"
+              className="rounded-lg border border-border bg-background p-4 text-sm text-foreground shadow-sm"
             >
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <span className="font-mono text-xs text-muted-foreground">{r.deviceId}</span>
                 <span className="text-xs uppercase text-muted-foreground">{r.status}</span>
               </div>
-              <p className="mt-2 whitespace-pre-wrap">{r.message}</p>
+              <p className="mt-2 whitespace-pre-wrap text-foreground">{r.message}</p>
               <p className="mt-1 text-xs text-muted-foreground">
                 {r.createdAt ? new Date(r.createdAt).toLocaleString() : ""}
               </p>

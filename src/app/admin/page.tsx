@@ -9,7 +9,7 @@ export default function AdminPage() {
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
             UN Operations
           </p>
-          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
             Administrator console
           </h1>
           <p className="max-w-3xl text-sm text-muted-foreground">

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Network, Shield, Truck, Warehouse, Eye } from "lucide-react";
+import { Boxes, Eye, Network, Shield, Truck } from "lucide-react";
 
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 const LINKS = [
   { href: "/", label: "Home", icon: Network },
   { href: "/admin", label: "Admin", icon: Shield },
-  { href: "/warehouse", label: "Warehouse", icon: Warehouse },
+  { href: "/warehouse", label: "Nodes", icon: Boxes },
   { href: "/driver", label: "Driver", icon: Truck },
   { href: "/track", label: "Ledger", icon: Eye },
 ] as const;

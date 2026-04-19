@@ -12,7 +12,7 @@ export const ROLE_DEFAULT_PATH: Record<ReliefLinkRole, `/${string}`> = {
 
 export const ROLE_LABEL: Record<ReliefLinkRole, string> = {
   admin: "UN administrator",
-  warehouse: "UN warehouse / food bank",
+  warehouse: "Network nodes",
   driver: "Driver",
   public: "Public tracking",
 };

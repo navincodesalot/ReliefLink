@@ -77,7 +77,7 @@ export function WarehouseInventorySnapshot({
           )}
         </div>
         <CardDescription>
-          What is currently stored for your warehouse account (read-only view).
+          What is currently stored for this node in MongoDB (read-only view).
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-6 md:grid-cols-3">

@@ -64,7 +64,7 @@ export function WarehouseFoodPanel({
 
   async function save() {
     if (!warehouseNodeId) {
-      toast.error("Pick a warehouse first.");
+      toast.error("Pick a site first.");
       return;
     }
     setBusy(true);

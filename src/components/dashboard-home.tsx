@@ -142,7 +142,7 @@ export function DashboardHome({ mode, driversRefreshKey }: DashboardHomeProps) {
     mode === "readonly"
       ? "Transparency"
       : mode === "warehouse"
-        ? "Warehouse operations"
+        ? "Network nodes"
         : "Operations";
   const title =
     mode === "readonly" ? (
@@ -152,7 +152,7 @@ export function DashboardHome({ mode, driversRefreshKey }: DashboardHomeProps) {
     ) : mode === "warehouse" ? (
       <>
         ReliefLink{" "}
-        <span className="text-muted-foreground">· Warehouse & food bank</span>
+        <span className="text-muted-foreground">· Sites & inventory</span>
       </>
     ) : (
       <>
@@ -162,7 +162,9 @@ export function DashboardHome({ mode, driversRefreshKey }: DashboardHomeProps) {
   const subtitle =
     mode === "readonly"
       ? "Read-only map and shipment progress. Custody updates still happen through verified field taps and UN operations."
-      : "UN-coordinated food aid routed through warehouses and local beacon nodes. Every hop is cryptographically anchored on Solana testnet at the moment of physical handoff.";
+      : mode === "warehouse"
+        ? "Monitor every node type—warehouses, stores, and local sites—on the live map. Shipments are anchored on Solana testnet at each physical handoff."
+        : "UN-coordinated food aid routed through warehouses and local beacon nodes. Every hop is cryptographically anchored on Solana testnet at the moment of physical handoff.";
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-6 p-4 md:p-8">
@@ -233,8 +235,10 @@ export function DashboardHome({ mode, driversRefreshKey }: DashboardHomeProps) {
             <CardTitle className="text-base">Live network map</CardTitle>
             <CardDescription>
               {readOnly
-                ? "Follow routes in real time. Warehouses in blue, beacon nodes in green, active routes dashed, completed legs solid."
-                : "Warehouses in blue · beacon nodes in green · active routes dashed · orange pins show live driver GPS."}
+                ? "Follow routes in real time. Hub nodes in blue, beacon nodes in green, active routes dashed, completed legs solid."
+                : mode === "warehouse"
+                  ? "Warehouses in blue · stores in green · homes in amber · dashed active routes · orange pins show live driver GPS."
+                  : "Warehouses in blue · beacon nodes in green · active routes dashed · orange pins show live driver GPS."}
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">

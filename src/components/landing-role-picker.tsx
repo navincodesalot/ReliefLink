@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Eye, Shield, Truck, Warehouse } from "lucide-react";
+import { Boxes, Eye, Shield, Truck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -15,16 +15,16 @@ const ROLES = [
     href: "/admin",
     title: "UN administrator",
     description:
-      "Register Arduinos, drivers, and warehouses; oversee emergencies and the full live map.",
+      "Register Arduinos, drivers, and nodes; oversee emergencies and the full live map.",
     icon: Shield,
     cta: "Open console",
   },
   {
     href: "/warehouse",
-    title: "UN warehouse / food bank",
+    title: "Network nodes",
     description:
-      "Record what you need, want, and have. Track drivers and get alerted when legs run late.",
-    icon: Warehouse,
+      "Pick any site—warehouse, store, or local node. Record need / want / have, track drivers, and get late-leg alerts.",
+    icon: Boxes,
     cta: "Open workspace",
   },
   {
@@ -58,7 +58,7 @@ export function LandingRolePicker() {
             Disaster food aid, verified on the ground and on-chain
           </h1>
           <p className="mx-auto max-w-2xl text-pretty text-sm leading-relaxed text-muted-foreground md:mx-0 md:text-base">
-            Pick a portal below. Drivers, warehouses, and public observers all open
+            Pick a portal below. Drivers, node operators, and public observers all open
             instantly — only the UN admin portal can seed new drivers.
           </p>
         </header>

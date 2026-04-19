@@ -64,11 +64,11 @@ export function AdminExportPanel() {
   const whCsv = `/api/admin/export?resource=warehouse&format=csv`;
 
   return (
-    <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
+    <Card className="border-border/80 bg-card/60 text-card-foreground backdrop-blur-sm">
       <CardHeader>
         <CardTitle className="text-base">Data export</CardTitle>
         <CardDescription>
-          Download chain-of-custody and warehouse inventory for reporting or backups. JSON
+          Download chain-of-custody and per-node inventory for reporting or backups. JSON
           includes full nested trip data; CSV files are spreadsheet-friendly (UTF-8 with BOM).
         </CardDescription>
       </CardHeader>
@@ -142,7 +142,7 @@ export function AdminExportPanel() {
         </div>
         <div className="space-y-2">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Warehouse inventory logs
+            Node inventory logs
           </p>
           <div className="flex flex-wrap gap-2">
             <Button

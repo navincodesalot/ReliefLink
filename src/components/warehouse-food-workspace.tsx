@@ -19,7 +19,21 @@ import {
 import { Label } from "@/components/ui/label";
 import type { NodeJSON } from "@/lib/types";
 
+/** Persists selected site; legacy key kept so existing sessions keep working. */
 const STORAGE_KEY = "relieflink.warehouseNodeId";
+
+function kindLabel(kind: NodeJSON["kind"]) {
+  switch (kind) {
+    case "warehouse":
+      return "Warehouse";
+    case "store":
+      return "Store";
+    case "home":
+      return "Home";
+    default:
+      return "Other";
+  }
+}
 
 export function WarehouseFoodWorkspace() {
   const [nodes, setNodes] = useState<NodeJSON[]>([]);
@@ -38,11 +52,17 @@ export function WarehouseFoodWorkspace() {
       const res = await fetch("/api/nodes", { cache: "no-store" });
       if (!res.ok || cancelled) return;
       const d = (await res.json()) as { nodes: NodeJSON[] };
-      const warehouses = d.nodes.filter((n) => n.kind === "warehouse");
-      setNodes(warehouses);
+      const siteNodes = d.nodes
+        .filter((n) => n.active !== false)
+        .sort((a, b) => {
+          const byKind = a.kind.localeCompare(b.kind);
+          if (byKind !== 0) return byKind;
+          return a.name.localeCompare(b.name);
+        });
+      setNodes(siteNodes);
       setWarehouseNodeId((cur) => {
-        if (cur && warehouses.some((n) => n.nodeId === cur)) return cur;
-        return warehouses[0]?.nodeId ?? "";
+        if (cur && siteNodes.some((n) => n.nodeId === cur)) return cur;
+        return siteNodes[0]?.nodeId ?? "";
       });
     })();
     return () => {
@@ -50,7 +70,7 @@ export function WarehouseFoodWorkspace() {
     };
   }, []);
 
-  function pickWarehouse(id: string) {
+  function pickSite(id: string) {
     setWarehouseNodeId(id);
     if (typeof window !== "undefined") {
       if (id) window.localStorage.setItem(STORAGE_KEY, id);
@@ -63,7 +83,7 @@ export function WarehouseFoodWorkspace() {
       nodes.map((n) => ({
         value: n.nodeId,
         label: n.name,
-        description: n.nodeId,
+        description: `${kindLabel(n.kind)} · ${n.nodeId}`,
         keywords: [n.nodeId, n.kind, n.address ?? ""],
       })),
     [nodes],
@@ -73,23 +93,24 @@ export function WarehouseFoodWorkspace() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Warehouse</CardTitle>
+          <CardTitle className="text-base">Network node</CardTitle>
           <CardDescription>
-            Pick the UN warehouse this workspace manages. Search by name or node id.
+            Choose any ReliefLink site—warehouses, stores, homes, or other nodes—to manage
+            inventory and see late inbound legs. Search by name, kind, or node id.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-1.5">
-          <Label htmlFor="wh-picker">Active warehouse</Label>
+          <Label htmlFor="wh-picker">Active site</Label>
           <SearchableSelect
             id="wh-picker"
             options={options}
             value={warehouseNodeId}
-            onChange={pickWarehouse}
+            onChange={pickSite}
             placeholder={
-              options.length === 0 ? "No warehouses seeded yet…" : "Search warehouses…"
+              options.length === 0 ? "No nodes seeded yet…" : "Search nodes…"
             }
             searchPlaceholder="Search…"
-            emptyMessage="No matching warehouses."
+            emptyMessage="No matching nodes."
           />
         </CardContent>
       </Card>

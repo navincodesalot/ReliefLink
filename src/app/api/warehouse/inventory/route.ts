@@ -63,9 +63,9 @@ export async function PUT(req: Request) {
 
   await connectDb();
   const node = await NodeModel.findOne({ nodeId: parsed.data.warehouseNodeId });
-  if (!node || node.kind !== "warehouse") {
+  if (!node) {
     return NextResponse.json(
-      { error: "warehouseNodeId must reference an existing warehouse node." },
+      { error: "warehouseNodeId must reference an existing node (any kind)." },
       { status: 400 },
     );
   }

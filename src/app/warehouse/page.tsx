@@ -1,6 +1,7 @@
 import { DashboardHome } from "@/components/dashboard-home";
 import { WarehouseFoodWorkspace } from "@/components/warehouse-food-workspace";
 
+/** Inventory + map for all node kinds (URL `/warehouse` kept for existing links). */
 export default function WarehousePage() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-emerald-950/15 via-background to-background">

@@ -51,13 +51,13 @@ export function CreateShipmentForm({ nodes, drivers, onCreated }: Props) {
     () => (destination ? nodes.find((n) => n.nodeId === destination) : undefined),
     [nodes, destination],
   );
-  const destinationIsWarehouse = destinationNode?.kind === "warehouse";
+  const destinationHasInventory = Boolean(destinationNode);
 
   useEffect(() => {
     setInventoryPick("");
     setInventoryNeed([]);
     setInventoryWant([]);
-    if (!destination || !destinationIsWarehouse) return;
+    if (!destination || !destinationHasInventory) return;
 
     let cancelled = false;
     setInventoryLoading(true);
@@ -72,7 +72,7 @@ export function CreateShipmentForm({ nodes, drivers, onCreated }: Props) {
           want?: InventoryLine[];
           error?: unknown;
         };
-        if (!res.ok) throw new Error("Could not load warehouse inventory.");
+        if (!res.ok) throw new Error("Could not load node inventory.");
         if (cancelled) return;
         setInventoryNeed(Array.isArray(data.need) ? data.need : []);
         setInventoryWant(Array.isArray(data.want) ? data.want : []);
@@ -90,7 +90,7 @@ export function CreateShipmentForm({ nodes, drivers, onCreated }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [destination, destinationIsWarehouse]);
+  }, [destination, destinationHasInventory]);
 
   const inventoryOptions: SearchOption[] = useMemo(() => {
     const out: SearchOption[] = [];
@@ -253,7 +253,7 @@ export function CreateShipmentForm({ nodes, drivers, onCreated }: Props) {
             />
           </div>
 
-          {destinationIsWarehouse ? (
+          {destinationHasInventory ? (
             <div className="space-y-1.5 md:col-span-2">
               <Label htmlFor="ship-inv-pick">Goods from destination inventory</Label>
               <SearchableSelect
@@ -266,7 +266,7 @@ export function CreateShipmentForm({ nodes, drivers, onCreated }: Props) {
                   inventoryLoading
                     ? "Loading inventory…"
                     : inventoryOptions.length === 0
-                      ? "No need/want lines saved for this warehouse yet"
+                      ? "No need/want lines saved for this node yet"
                       : "Search items from need & want lists…"
                 }
                 searchPlaceholder="Search items…"
@@ -274,7 +274,7 @@ export function CreateShipmentForm({ nodes, drivers, onCreated }: Props) {
                 clearable
               />
               <p className="text-xs text-muted-foreground">
-                Uses the warehouse&apos;s saved{" "}
+                Uses this node&apos;s saved{" "}
                 <span className="font-medium">Need</span> and{" "}
                 <span className="font-medium">Want</span> lists. Choosing a row fills
                 description, cargo, and quantity; you can edit them afterward.
