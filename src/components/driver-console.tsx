@@ -595,7 +595,7 @@ function JobCard({
     return (
       <Card>
         <CardContent className="py-6 text-sm text-muted-foreground">
-          {loading ? "Checking for assignments…" : "No job found for this device."}
+          {loading ? "Checking for assignments…" : "Couldn't load assignments. Try refreshing."}
         </CardContent>
       </Card>
     );
@@ -609,14 +609,13 @@ function JobCard({
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Radio className="h-4 w-4" />
-            <span className="font-mono text-sm text-muted-foreground">{deviceId}</span>
+            <Truck className="h-4 w-4 text-muted-foreground" />
+            No upcoming delivery
           </CardTitle>
-          <CardDescription>{job.message}</CardDescription>
+          <CardDescription className="text-sm leading-relaxed text-muted-foreground">
+            {job.message}
+          </CardDescription>
         </CardHeader>
-        <CardContent className="py-6 text-sm text-muted-foreground">
-          Waiting for an operator to assign this device to a shipment leg.
-        </CardContent>
       </Card>
     );
   }

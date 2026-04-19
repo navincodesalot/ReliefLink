@@ -62,13 +62,13 @@ export function AdminEmergenciesPanel() {
   const open = rows.filter((r) => r.status !== "resolved");
 
   return (
-    <Card className="border-amber-500/30 bg-amber-500/5 text-card-foreground dark:border-amber-500/25 dark:bg-amber-950/25">
+    <Card className="overflow-hidden border-l-4 border-l-orange-500 border-y border-r border-border bg-orange-50/95 text-card-foreground shadow-sm dark:border-border dark:border-l-orange-400 dark:bg-orange-950/45">
       <CardHeader>
         <div className="flex items-center gap-2">
-          <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+          <AlertTriangle className="h-5 w-5 shrink-0 text-orange-600 dark:text-orange-300" />
           <CardTitle className="text-lg">Driver emergencies</CardTitle>
         </div>
-        <CardDescription>
+        <CardDescription className="text-muted-foreground">
           Open requests for assistance from the field. Acknowledge quickly, then resolve with notes.
         </CardDescription>
       </CardHeader>
@@ -82,7 +82,7 @@ export function AdminEmergenciesPanel() {
             .map((r) => (
             <li
               key={r.id}
-              className="rounded-lg border border-border bg-background p-4 text-sm text-foreground shadow-sm"
+              className="rounded-lg border border-orange-200/80 bg-background p-4 text-sm text-foreground shadow-sm dark:border-orange-900/50"
             >
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <span className="font-mono text-xs text-muted-foreground">{r.deviceId}</span>

@@ -20,7 +20,7 @@ const ROLES = [
     cta: "Open console",
   },
   {
-    href: "/warehouse",
+    href: "/nodes",
     title: "Network nodes",
     description:
       "Pick any site—warehouse, store, or local node. Record need / want / have, track drivers, and get late-leg alerts.",
@@ -47,19 +47,19 @@ const ROLES = [
 
 export function LandingRolePicker() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-sky-950/10 via-background to-background">
+    <div className="via-background to-background relative min-h-screen overflow-hidden bg-gradient-to-b from-sky-950/10">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_60%_at_50%_-30%,rgba(56,189,248,0.15),transparent)]" />
       <div className="relative mx-auto flex max-w-6xl flex-col gap-10 px-4 py-14 md:px-8 md:py-20">
         <header className="space-y-4 text-center md:text-left">
-          <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
+          <p className="text-muted-foreground text-xs tracking-[0.25em] uppercase">
             ReliefLink
           </p>
-          <h1 className="text-balance text-3xl font-semibold tracking-tight md:text-5xl">
+          <h1 className="text-3xl font-semibold tracking-tight text-balance md:text-5xl">
             Disaster food aid, verified on the ground and on-chain
           </h1>
-          <p className="mx-auto max-w-2xl text-pretty text-sm leading-relaxed text-muted-foreground md:mx-0 md:text-base">
-            Pick a portal below. Drivers, node operators, and public observers all open
-            instantly — only the UN admin portal can seed new drivers.
+          <p className="text-muted-foreground mx-auto max-w-2xl text-sm leading-relaxed text-pretty md:mx-0 md:text-base">
+            Pick a portal below. Drivers, node operators, and public observers
+            all open instantly — only the UN admin portal can seed new drivers.
           </p>
         </header>
 
@@ -67,22 +67,24 @@ export function LandingRolePicker() {
           {ROLES.map(({ href, title, description, icon: Icon, cta }) => (
             <Card
               key={href}
-              className="flex flex-col border-border/70 bg-card/70 shadow-sm backdrop-blur-md transition hover:border-primary/35 hover:shadow-md"
+              className="border-border/70 bg-card/70 hover:border-primary/35 flex flex-col shadow-sm backdrop-blur-md transition hover:shadow-md"
             >
               <CardHeader className="space-y-3">
                 <div className="flex items-start gap-3">
-                  <span className="mt-0.5 inline-flex h-11 w-11 items-center justify-center rounded-xl border bg-muted/50 text-foreground shadow-inner">
+                  <span className="bg-muted/50 text-foreground mt-0.5 inline-flex h-11 w-11 items-center justify-center rounded-xl border shadow-inner">
                     <Icon className="h-5 w-5" aria-hidden />
                   </span>
                   <div className="space-y-1">
-                    <CardTitle className="text-lg leading-snug">{title}</CardTitle>
+                    <CardTitle className="text-lg leading-snug">
+                      {title}
+                    </CardTitle>
                     <CardDescription className="text-sm leading-relaxed">
                       {description}
                     </CardDescription>
                   </div>
                 </div>
               </CardHeader>
-              <CardFooter className="mt-auto justify-end border-t border-border/60 bg-muted/10 px-6 py-4">
+              <CardFooter className="border-border/60 bg-muted/10 mt-auto justify-end border-t px-6 py-4">
                 <Button asChild>
                   <Link href={href}>{cta}</Link>
                 </Button>

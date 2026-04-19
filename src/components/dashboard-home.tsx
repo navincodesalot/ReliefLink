@@ -36,7 +36,7 @@ function MapSkeleton() {
 
 const POLL_MS = 2500;
 
-export type DashboardMode = "admin" | "warehouse" | "readonly";
+export type DashboardMode = "admin" | "readonly";
 
 type DashboardHomeProps = {
   mode: DashboardMode;
@@ -138,21 +138,11 @@ export function DashboardHome({ mode, driversRefreshKey }: DashboardHomeProps) {
     [shipments],
   );
 
-  const eyebrow =
-    mode === "readonly"
-      ? "Transparency"
-      : mode === "warehouse"
-        ? "Network nodes"
-        : "Operations";
+  const eyebrow = mode === "readonly" ? "Transparency" : "Operations";
   const title =
     mode === "readonly" ? (
       <>
         ReliefLink <span className="text-muted-foreground">· Public view</span>
-      </>
-    ) : mode === "warehouse" ? (
-      <>
-        ReliefLink{" "}
-        <span className="text-muted-foreground">· Sites & inventory</span>
       </>
     ) : (
       <>
@@ -162,9 +152,7 @@ export function DashboardHome({ mode, driversRefreshKey }: DashboardHomeProps) {
   const subtitle =
     mode === "readonly"
       ? "Read-only map and shipment progress. Custody updates still happen through verified field taps and UN operations."
-      : mode === "warehouse"
-        ? "Monitor every node type—warehouses, stores, and local sites—on the live map. Shipments are anchored on Solana testnet at each physical handoff."
-        : "UN-coordinated food aid routed through warehouses and local beacon nodes. Every hop is cryptographically anchored on Solana testnet at the moment of physical handoff.";
+      : "UN-coordinated food aid routed through warehouses and local beacon nodes. Every hop is cryptographically anchored on Solana testnet at the moment of physical handoff.";
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-6 p-4 md:p-8">
@@ -173,7 +161,7 @@ export function DashboardHome({ mode, driversRefreshKey }: DashboardHomeProps) {
           <p className="text-xs uppercase tracking-widest text-muted-foreground">
             {eyebrow}
           </p>
-          <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">{title}</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{subtitle}</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -236,9 +224,7 @@ export function DashboardHome({ mode, driversRefreshKey }: DashboardHomeProps) {
             <CardDescription>
               {readOnly
                 ? "Follow routes in real time. Hub nodes in blue, beacon nodes in green, active routes dashed, completed legs solid."
-                : mode === "warehouse"
-                  ? "Warehouses in blue · stores in green · homes in amber · dashed active routes · orange pins show live driver GPS."
-                  : "Warehouses in blue · beacon nodes in green · active routes dashed · orange pins show live driver GPS."}
+                : "Warehouses in blue · stores in green · homes in amber · dashed active routes · orange pins show live driver GPS."}
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">

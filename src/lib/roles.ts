@@ -5,7 +5,7 @@ export type StaffRole = Exclude<ReliefLinkRole, "public">;
 
 export const ROLE_DEFAULT_PATH: Record<ReliefLinkRole, `/${string}`> = {
   admin: "/admin",
-  warehouse: "/warehouse",
+  warehouse: "/nodes",
   driver: "/driver",
   public: "/track",
 };

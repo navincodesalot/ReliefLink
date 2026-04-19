@@ -13,6 +13,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { unitOptionsForLine } from "@/lib/inventory-units";
+import { cn } from "@/lib/utils";
+
 type Line = { item: string; quantity: number; unit?: string };
 
 function emptyLine(): Line {
@@ -161,19 +164,32 @@ function LineEditor({
               }
               className="w-24"
             />
-            <Input
-              placeholder="unit"
-              value={line.unit ?? ""}
+            <select
+              aria-label="Unit"
+              value={line.unit ?? "kg"}
               onChange={(e) =>
                 setLines((prev) => {
                   const n = [...prev];
                   const cur = n[i]!;
-                  n[i] = { item: cur.item, quantity: cur.quantity, unit: e.target.value };
+                  n[i] = {
+                    item: cur.item,
+                    quantity: cur.quantity,
+                    unit: e.target.value,
+                  };
                   return n;
                 })
               }
-              className="w-20"
-            />
+              className={cn(
+                "h-9 min-w-26 shrink-0 rounded-md border border-input bg-transparent px-2 text-sm text-foreground shadow-sm",
+                "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+              )}
+            >
+              {unitOptionsForLine(line.unit).map((u) => (
+                <option key={u} value={u}>
+                  {u}
+                </option>
+              ))}
+            </select>
           </div>
         ))}
       </div>

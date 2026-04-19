@@ -43,9 +43,32 @@ const VerdictSchema = z.object({
     ),
   rationale: z
     .string()
-    .max(400)
-    .describe("One or two sentences explaining the verdict."),
+    .max(220)
+    .describe(
+      "Brief, plain-language note (one short sentence) on what you see in the photo.",
+    ),
 });
+
+/** Human-readable audit line for MongoDB / admin (no internal jargon). */
+function formatDeliveryProofNotes(verdict: {
+  matchesManifest: boolean;
+  quality: DeliveryQuality;
+  rationale: string;
+}): string {
+  const match = verdict.matchesManifest
+    ? "Matches expected cargo"
+    : "Does not clearly match expected cargo";
+  const cond =
+    verdict.quality === "good"
+      ? "good condition"
+      : verdict.quality === "acceptable"
+        ? "acceptable condition"
+        : "poor condition";
+  const detail = verdict.rationale.trim();
+  return detail
+    ? `${match}; ${cond}. ${detail}`
+    : `${match}; ${cond}.`;
+}
 
 export async function POST(req: Request) {
   const contentType = req.headers.get("content-type") ?? "";
@@ -170,7 +193,7 @@ export async function POST(req: Request) {
       model: google(modelId),
       schema: VerdictSchema,
       system:
-        "You inspect photos of humanitarian relief deliveries. Decide if the visible goods match the shipment manifest and assess their overall condition. Be strict about visibly damaged, soaked, opened, or spilled goods (quality: poor). Reserve 'good' for clean, intact, clearly-matching cargo.",
+        "You review delivery photos for relief shipments. Output structured fields only. Be concise: rationale must be one short sentence in plain language (no labels like 'AI verdict'). For quality, use poor if goods look damaged, open, soaked, or unsafe; acceptable if usable but imperfect; good if clearly intact and appropriate.",
       messages: [
         {
           role: "user",
@@ -199,7 +222,7 @@ export async function POST(req: Request) {
   const quality: DeliveryQuality = verdict.quality;
   const flag = !verdict.matchesManifest || quality === "poor";
 
-  const rationale = `AI verdict: ${verdict.matchesManifest ? "manifest match" : "manifest MISMATCH"}, quality=${quality}. ${verdict.rationale}`;
+  const proofNotes = formatDeliveryProofNotes(verdict);
 
   const result = await finalizeLegAfterProof({
     shipment,
@@ -209,7 +232,7 @@ export async function POST(req: Request) {
     timestamp: now,
     deliveryQuality: quality,
     matchesManifest: verdict.matchesManifest,
-    proofNotes: rationale,
+    proofNotes,
     flagShipment: flag,
   });
 

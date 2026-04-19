@@ -73,9 +73,8 @@ export async function GET(
       leg: null,
       fromNode: null,
       toNode: null,
-      message: selfNode
-        ? `Device ${deviceId} has no active shipment assignment.`
-        : `Device ${deviceId} is not yet registered. Run the USB bridge or add it on the dashboard.`,
+      message:
+        "No upcoming deliveries right now. When you're assigned a route, it will show up here.",
     });
   }
 
