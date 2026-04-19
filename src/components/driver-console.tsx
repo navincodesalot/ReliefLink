@@ -177,9 +177,8 @@ export function DriverConsole() {
   const current = drivers.find((d) => d.driverDeviceId === deviceId);
 
   return (
-    <div className="relative mx-auto w-full max-w-2xl space-y-6 overflow-hidden p-4 md:p-8">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(251,191,36,0.1),transparent)]" />
-      <div className="relative space-y-6">
+    <div className="relieflink-page-backdrop">
+      <div className="mx-auto w-full max-w-2xl space-y-6 p-4 md:p-8">
         <header className="space-y-1">
           <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
             <Truck className="h-6 w-6 text-amber-500" /> Driver console

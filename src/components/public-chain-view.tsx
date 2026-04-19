@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ExternalLink, Link2 } from "lucide-react";
 
+import { PageBackdrop } from "@/components/page-backdrop";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,9 +39,8 @@ export function PublicChainView() {
   }, [load]);
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-sky-950/20 via-background to-background">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(56,189,248,0.12),transparent)] dark:bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(56,189,248,0.18),transparent)]" />
-      <div className="relative mx-auto max-w-5xl space-y-8 px-4 py-12 md:px-8">
+    <PageBackdrop>
+      <div className="mx-auto max-w-5xl space-y-8 px-4 py-12 md:px-8">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-2">
             <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
@@ -128,6 +128,6 @@ export function PublicChainView() {
           ))}
         </div>
       </div>
-    </div>
+    </PageBackdrop>
   );
 }

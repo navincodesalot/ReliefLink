@@ -4,48 +4,48 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --background: oklch(0.995 0.004 200);
+  --foreground: oklch(0.16 0.015 215);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.16 0.015 215);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.16 0.015 215);
+  --primary: oklch(0.54 0.085 200);
+  --primary-foreground: oklch(0.99 0.005 200);
+  --secondary: oklch(0.965 0.014 200);
+  --secondary-foreground: oklch(0.28 0.04 200);
+  --muted: oklch(0.965 0.008 200);
+  --muted-foreground: oklch(0.52 0.018 210);
+  --accent: oklch(0.945 0.022 200);
+  --accent-foreground: oklch(0.28 0.055 200);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --border: oklch(0.905 0.012 210);
+  --input: oklch(0.915 0.012 210);
+  --ring: oklch(0.65 0.09 200);
   --radius: 0.625rem;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: oklch(0.155 0.02 220);
+  --foreground: oklch(0.97 0.01 200);
+  --card: oklch(0.215 0.022 220);
+  --card-foreground: oklch(0.97 0.01 200);
+  --popover: oklch(0.215 0.022 220);
+  --popover-foreground: oklch(0.97 0.01 200);
+  --primary: oklch(0.78 0.09 200);
+  --primary-foreground: oklch(0.2 0.03 215);
+  --secondary: oklch(0.29 0.025 215);
+  --secondary-foreground: oklch(0.96 0.012 200);
+  --muted: oklch(0.28 0.018 215);
+  --muted-foreground: oklch(0.72 0.025 200);
+  --accent: oklch(0.31 0.04 205);
+  --accent-foreground: oklch(0.96 0.02 200);
   --destructive: oklch(0.704 0.191 22.216);
   --destructive-foreground: oklch(0.985 0 0);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --ring: oklch(0.62 0.085 200);
 }
 
 @theme inline {
@@ -121,6 +121,70 @@
   }
   .scrollbar-none::-webkit-scrollbar {
     display: none;
+  }
+
+  /* --- Shared page backdrop ---------------------------------------------
+   * Single source of truth for the app-wide background treatment.
+   * Uses semantic tokens so light / dark stays coherent with the palette.
+   */
+  .relieflink-page-backdrop {
+    position: relative;
+    min-height: 100vh;
+    overflow: hidden;
+    background: linear-gradient(
+      to bottom,
+      color-mix(in oklch, var(--color-primary) 6%, var(--color-background)),
+      var(--color-background) 45%,
+      var(--color-background)
+    );
+  }
+  .relieflink-page-backdrop::before,
+  .relieflink-page-backdrop::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .relieflink-page-backdrop::before {
+    background: radial-gradient(
+      ellipse 80% 50% at 50% -20%,
+      color-mix(in oklch, var(--color-primary) 18%, transparent),
+      transparent 60%
+    );
+  }
+  .relieflink-page-backdrop::after {
+    background: radial-gradient(
+      ellipse 55% 40% at 85% 110%,
+      color-mix(in oklch, var(--color-primary) 10%, transparent),
+      transparent 60%
+    );
+  }
+  .relieflink-page-backdrop > * {
+    position: relative;
+    z-index: 1;
+  }
+  .dark .relieflink-page-backdrop {
+    background: linear-gradient(
+      to bottom,
+      color-mix(in oklch, var(--color-primary) 14%, var(--color-background)),
+      var(--color-background) 50%,
+      var(--color-background)
+    );
+  }
+  .dark .relieflink-page-backdrop::before {
+    background: radial-gradient(
+      ellipse 80% 50% at 50% -20%,
+      color-mix(in oklch, var(--color-primary) 26%, transparent),
+      transparent 60%
+    );
+  }
+  .dark .relieflink-page-backdrop::after {
+    background: radial-gradient(
+      ellipse 55% 40% at 85% 110%,
+      color-mix(in oklch, var(--color-primary) 16%, transparent),
+      transparent 60%
+    );
   }
 }
 

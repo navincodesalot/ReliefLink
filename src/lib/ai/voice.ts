@@ -1,5 +1,6 @@
 import { callGemini } from "@/lib/ai/gemini";
 import type { VoiceRequest } from "@/lib/ai/contracts";
+import { getEchoAnnouncementCommand } from "@/lib/echo-voice";
 
 type VoiceProfile = {
   id: string;
@@ -165,56 +166,10 @@ export async function buildVoiceAlert(input: VoiceRequest) {
 
   const voice = selectVoice(input.language, input.region, input.severity);
   const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
-  const voiceMonkeyApiKey = process.env.VOICE_MONKEY_API_KEY?.trim();
-  const voiceMonkeyDevice = process.env.VOICE_MONKEY_DEVICE?.trim();
-  const iftttWebhookKey = process.env.IFTTT_WEBHOOK_KEY?.trim();
-  const iftttEvent = process.env.IFTTT_EVENT_NAME?.trim() || "relieflink_alert";
-  const echo =
-    voiceMonkeyApiKey && voiceMonkeyDevice
-      ? {
-          provider: "voicemonkey" as const,
-          ready: true,
-          message:
-            "Voice Monkey command is ready for an Alexa routine or Echo device.",
-          command: {
-            method: "POST" as const,
-            url: "https://api.voicemonkey.io/trigger",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: {
-              access_token: voiceMonkeyApiKey,
-              device: voiceMonkeyDevice,
-              announcement: script,
-            },
-          },
-        }
-      : iftttWebhookKey
-        ? {
-            provider: "ifttt" as const,
-            ready: true,
-            message:
-              "IFTTT webhook command is ready to trigger an Alexa-connected applet.",
-            command: {
-              method: "POST" as const,
-              url: `https://maker.ifttt.com/trigger/${iftttEvent}/json/with/key/${iftttWebhookKey}`,
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: {
-                value1: script,
-                value2: input.language,
-                value3: input.region,
-              },
-            },
-          }
-        : {
-            provider: "voicemonkey" as const,
-            ready: false,
-            message:
-              "Echo is not connected yet. Configure VOICE_MONKEY_API_KEY and VOICE_MONKEY_DEVICE, or IFTTT_WEBHOOK_KEY, to send Alexa announcements.",
-            command: null,
-          };
+  const echo = getEchoAnnouncementCommand(script, {
+    language: input.language,
+    region: input.region,
+  });
 
   if (!apiKey) {
     return {

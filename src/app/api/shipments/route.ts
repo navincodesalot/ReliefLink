@@ -5,6 +5,7 @@ import { connectDb } from "@/lib/db";
 import { NodeModel } from "@/lib/models/Node";
 import { Shipment } from "@/lib/models/Shipment";
 import { ShipmentLeg } from "@/lib/models/ShipmentLeg";
+import { announceInboundLeg } from "@/lib/store-voice";
 import { flagStaleShipments } from "@/lib/transfer-logic";
 import { toShipmentJSON } from "@/lib/serialize";
 
@@ -147,6 +148,15 @@ export async function POST(req: Request) {
       startedAt: l.index === 0 ? now : undefined,
     })),
   );
+
+  if (input.driverDeviceId) {
+    const firstLeg = await ShipmentLeg.findOne({ shipmentId, index: 0 });
+    if (firstLeg) {
+      await announceInboundLeg({ shipment, leg: firstLeg }).catch((err) => {
+        console.warn("[shipments] inbound announcement failed", err);
+      });
+    }
+  }
 
   return NextResponse.json(
     { shipment: toShipmentJSON(shipment.toObject()) },

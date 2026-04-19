@@ -1,12 +1,12 @@
 import { AdminConsole } from "@/components/admin-console";
+import { PageBackdrop } from "@/components/page-backdrop";
 
 export default function AdminPage() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_45%_at_20%_-15%,rgba(59,130,246,0.08),transparent)] dark:bg-[radial-gradient(ellipse_80%_45%_at_20%_-15%,rgba(59,130,246,0.14),transparent)]" />
-      <div className="relative space-y-10 p-4 md:p-8">
+    <PageBackdrop>
+      <div className="space-y-10 p-4 md:p-8">
         <header className="mx-auto max-w-7xl space-y-2">
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+          <p className="text-xs uppercase tracking-[0.2em] text-primary">
             UN Operations
           </p>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
@@ -21,6 +21,6 @@ export default function AdminPage() {
           <AdminConsole />
         </div>
       </div>
-    </div>
+    </PageBackdrop>
   );
 }

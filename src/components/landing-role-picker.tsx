@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Boxes, Eye, Shield, Truck } from "lucide-react";
 
+import { PageBackdrop } from "@/components/page-backdrop";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -47,9 +48,8 @@ const ROLES = [
 
 export function LandingRolePicker() {
   return (
-    <div className="via-background to-background relative min-h-screen overflow-hidden bg-gradient-to-b from-sky-950/10">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_60%_at_50%_-30%,rgba(56,189,248,0.15),transparent)]" />
-      <div className="relative mx-auto flex max-w-6xl flex-col gap-10 px-4 py-14 md:px-8 md:py-20">
+    <PageBackdrop>
+      <div className="mx-auto flex max-w-6xl flex-col gap-10 px-4 py-14 md:px-8 md:py-20">
         <header className="space-y-4 text-center md:text-left">
           <p className="text-muted-foreground text-xs tracking-[0.25em] uppercase">
             ReliefLink
@@ -93,6 +93,6 @@ export function LandingRolePicker() {
           ))}
         </section>
       </div>
-    </div>
+    </PageBackdrop>
   );
 }

@@ -1,15 +1,15 @@
 import Link from "next/link";
 
+import { PageBackdrop } from "@/components/page-backdrop";
 import { WarehouseFoodWorkspace } from "@/components/warehouse-food-workspace";
 
 /** Node-operator portal: inventory & late alerts per site (not the UN admin console). */
 export default function NodesPage() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-emerald-950/10 via-background to-background dark:from-emerald-950/20">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_40%_at_80%_-15%,rgba(16,185,129,0.14),transparent)] dark:bg-[radial-gradient(ellipse_70%_40%_at_80%_-15%,rgba(16,185,129,0.22),transparent)]" />
-      <div className="relative mx-auto max-w-7xl space-y-8 p-4 md:p-8">
+    <PageBackdrop>
+      <div className="mx-auto max-w-7xl space-y-8 p-4 md:p-8">
         <header className="space-y-2">
-          <p className="text-xs uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-400">
+          <p className="text-xs uppercase tracking-[0.2em] text-primary">
             Network nodes
           </p>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
@@ -26,6 +26,6 @@ export default function NodesPage() {
         </header>
         <WarehouseFoodWorkspace />
       </div>
-    </div>
+    </PageBackdrop>
   );
 }

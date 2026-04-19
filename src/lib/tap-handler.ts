@@ -3,6 +3,7 @@ import { NodeModel, type NodeDoc } from "@/lib/models/Node";
 import { Shipment, type ShipmentDoc } from "@/lib/models/Shipment";
 import { ShipmentLeg, type ShipmentLegDoc } from "@/lib/models/ShipmentLeg";
 import { TransferEvent, type TransferEventDoc } from "@/lib/models/TransferEvent";
+import { announceDriverVerified, announceInboundLeg } from "@/lib/store-voice";
 import { evaluateLegTap } from "@/lib/transfer-logic";
 import { buildMemoPayload, submitMemo } from "@/lib/solana-memo";
 
@@ -133,6 +134,11 @@ export async function processTap(input: TapInput): Promise<TapResult> {
       NodeModel.findOne({ nodeId: leg.fromNodeId }),
       NodeModel.findOne({ nodeId: leg.toNodeId }),
     ]);
+
+    await announceDriverVerified({ leg }).catch((err) => {
+      console.warn("[tap-handler] driver-verified announcement failed", err);
+    });
+
     return { ok: true, shipment, leg, event, fromNode, toNode };
   }
 
@@ -265,6 +271,7 @@ export async function finalizeLegAfterProof(
       ? "delivered"
       : "in_transit";
 
+  let nextLegForAnnouncement: ShipmentLegDoc | null = null;
   if (!isFinal) {
     const nextIndex = leg.index + 1;
     const nextLeg = await ShipmentLeg.findOne({
@@ -276,9 +283,19 @@ export async function finalizeLegAfterProof(
       if (!nextLeg.startedAt) nextLeg.startedAt = timestamp;
       await nextLeg.save();
       shipment.currentLegIndex = nextIndex;
+      if (nextLeg.driverDeviceId) nextLegForAnnouncement = nextLeg;
     }
   }
   await shipment.save();
+
+  if (nextLegForAnnouncement) {
+    await announceInboundLeg({
+      shipment,
+      leg: nextLegForAnnouncement,
+    }).catch((err) => {
+      console.warn("[tap-handler] next-leg announcement failed", err);
+    });
+  }
 
   const [fromNode, toNode] = await Promise.all([
     NodeModel.findOne({ nodeId: leg.fromNodeId }),

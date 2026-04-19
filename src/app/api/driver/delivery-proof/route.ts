@@ -15,6 +15,7 @@ import {
   toShipmentLegJSON,
   toTransferEventJSON,
 } from "@/lib/serialize";
+import { announceProofOutcome } from "@/lib/store-voice";
 import { finalizeLegAfterProof } from "@/lib/tap-handler";
 
 export const dynamic = "force-dynamic";
@@ -239,6 +240,19 @@ export async function POST(req: Request) {
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status });
   }
+
+  await announceProofOutcome({
+    shipment: result.shipment,
+    leg: result.leg,
+    verdict: {
+      matchesManifest: verdict.matchesManifest,
+      quality,
+      rationale: verdict.rationale,
+    },
+    flagged: flag,
+  }).catch((err) => {
+    console.warn("[delivery-proof] outcome announcement failed", err);
+  });
 
   return NextResponse.json(
     {
