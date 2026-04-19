@@ -18,8 +18,8 @@
 #include <Arduino.h>
 #include <EEPROM.h>
 
-static const uint8_t PIN_TAP = 11;
-static const uint8_t PIN_BUZZ = 9;
+static const uint8_t PIN_TAP = 2;
+static const uint8_t PIN_BUZZ = 11;
 static const uint8_t PIN_LED = 13;
 
 static const unsigned long DEBOUNCE_MS = 35;
