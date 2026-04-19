@@ -1,36 +1,46 @@
-import { Schema, model, models, type Model, type HydratedDocument } from "mongoose";
+import mongoose from "mongoose";
+import type { Model, HydratedDocument } from "mongoose";
+
+const { Schema, model, models } = mongoose;
 
 export interface ITransferEvent {
-  batchId: string;
-  from: string;
-  to: string;
+  shipmentId: string;
+  legIndex: number;
+  fromNodeId: string;
+  toNodeId: string;
+  deviceId: string;
+  source: "hardware_tap" | "simulated_tap";
   timestamp: Date;
   confirmed: boolean;
-  deviceId: string;
-  signature?: string;
-  notes?: string;
   isAnomaly: boolean;
   anomalyReason?: string;
   solanaSignature?: string;
   memoPayload?: string;
+  notes?: string;
 }
 
 export type TransferEventDoc = HydratedDocument<ITransferEvent>;
 
 const TransferEventSchema = new Schema<ITransferEvent>(
   {
-    batchId: { type: String, required: true, index: true },
-    from: { type: String, required: true },
-    to: { type: String, required: true },
+    shipmentId: { type: String, required: true, index: true },
+    legIndex: { type: Number, required: true },
+    fromNodeId: { type: String, required: true },
+    toNodeId: { type: String, required: true },
+    deviceId: { type: String, required: true },
+    source: {
+      type: String,
+      enum: ["hardware_tap", "simulated_tap"],
+      default: "hardware_tap",
+      required: true,
+    },
     timestamp: { type: Date, default: () => new Date(), index: true },
     confirmed: { type: Boolean, default: false },
-    deviceId: { type: String, required: true },
-    signature: { type: String },
-    notes: { type: String },
     isAnomaly: { type: Boolean, default: false },
     anomalyReason: { type: String },
     solanaSignature: { type: String },
     memoPayload: { type: String },
+    notes: { type: String },
   },
   { timestamps: false },
 );

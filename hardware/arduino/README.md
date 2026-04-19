@@ -1,57 +1,59 @@
-# Arduino Uno R3 — ReliefLink handoff (USB serial)
+# Arduino Uno R3 — ReliefLink 2-board tap
 
-## What you are building
+ReliefLink anchors custody handoffs between nodes in a supply network. A
+**driver** board (USB to the operator's laptop) and a battery-powered **store
+beacon** share a single copper "tap" line: touching the two copper pads
+completes a circuit to their common GND. Both boards detect the contact; the
+**driver** emits `TAP` over USB serial, the **store** waits 3 seconds and
+then buzzes.
 
-ReliefLink records **custody handoffs**. The **Arduino does not use the network**. It sends button presses (`1` / `2`) over **USB serial**. The **Grove RGB LCD** (I2C, via **Grove Base Shield**) shows status lines sent by the field laptop.
+The **USB bridge** (`usb-bridge/bridge.mjs`) on the field laptop forwards the
+driver's `TAP` to `POST /api/transfer`. The server looks up the driver's
+currently-assigned active leg and signs the handoff on Solana testnet — no
+store identity ever travels on the wire.
 
-The **USB bridge** (`usb-bridge/bridge.mjs`) on the field laptop:
+| Board | Folder | Power | Sends |
+| ----- | ------ | ----- | ----- |
+| Driver tag | [`driver_tag/driver_tag.ino`](./driver_tag/driver_tag.ino) | USB (from laptop) | `TAP\n` over serial on contact |
+| Store beacon | [`store_beacon/store_beacon.ino`](./store_beacon/store_beacon.ino) | 9V battery | nothing — buzzes after 3s |
 
-1. Reads serial lines from the Uno.
-2. **Polls** `GET /api/handoff-station/:deviceId` (same `TRANSFER_SECRET` header) for **batch + from + to** assigned in the dashboard (**Handoff stations** page).
-3. When the PIN is complete, **`POST /api/transfer`** with HMAC on the JSON body.
+## Wiring the shared tap
 
-So **batch and roles are not fixed in `.env`** — you set them per physical board in the UI.
+Both boards share **one** ground and one copper pad each. Bringing the two
+pads into contact closes the circuit to their common GND:
 
-| Machine | Role |
-| ------- | ---- |
-| **Dashboard** | Create batches, open **Handoff stations** (`/stations`), map each `DEVICE_ID` to batch + `from` → `to`. |
-| **Field** | Run the bridge + Arduino; bridge fetches the latest assignment before each handoff. |
+```
+Driver Uno   D2 ─────┐                     ┌───── D2   Store Uno
+(USB power)          │   copper pads       │         (battery power)
+           GND ──────┴────────[ GND bus ]──┴────── GND
+```
 
-## Wiring — buttons
+- **D2** on each board uses `INPUT_PULLUP` — pressed / in contact = `LOW`.
+- **Common GND** is essential; without it the two boards can't agree that the
+  copper pads are at the same potential.
+- Mount the pads a few millimetres apart so they only complete the circuit
+  when pressed together.
 
-| Button | Arduino Uno |
-| ------ | ----------- |
-| Button 1 | **D2** and **GND** (INPUT_PULLUP, pressed = LOW) |
-| Button 2 | **D3** and **GND** |
+## Driver Arduino — optional Grove RGB LCD
 
-## Wiring — Grove LCD RGB backlight + Base Shield
+If you use the Grove Base Shield + LCD, leave `RELIEFLINK_USE_GROVE_RGB_LCD 1`
+in [`driver_tag.ino`](./driver_tag/driver_tag.ino). The bridge can send:
 
-- Mount the **Grove Base Shield** on the Uno; plug the **Grove LCD RGB backlight** into an **I2C** Grove socket on the shield (the shield routes I2C to **A4/A5**).
-- Library: **Grove - LCD RGB backlight** (`rgb_lcd.h`) — already the default in [`relieflink_handoff_uno.ino`](./relieflink_handoff_uno/relieflink_handoff_uno.ino) (`RELIEFLINK_USE_GROVE_RGB_LCD` **1**). Set that define to **0** only if you run without the LCD.
+```
+>0,First line text
+>1,Second line
+```
 
-Host → Uno text protocol (115200 baud), one line per command:
+Set the define to `0` if no LCD is attached — the tap behavior is unchanged.
 
-- `>0,First line text\n` — row 0 (max 16 characters used)
-- `>1,Second line\n` — row 1
+## Store Arduino — buzzer
 
-The bridge sends these automatically (assignment summary, PIN progress, HTTP result).
+- **D9** → passive piezo buzzer `+` (with a ~100Ω series resistor).
+- **GND** → buzzer `-`.
+- Optional LED on **D13** flashes during the 3-second count then stays on
+  while the buzzer sounds.
 
-## Firmware
-
-[`relieflink_handoff_uno/relieflink_handoff_uno.ino`](./relieflink_handoff_uno/relieflink_handoff_uno.ino)
-
-1. Open the folder in Arduino IDE, board **Arduino Uno**, select COM port, upload.
-2. LCD is on by default with the Grove shield; disable in the sketch only if you remove the module.
-
-### Serial / buttons not registering?
-
-- **Only one program** may open the COM port — close Arduino **Serial Monitor** before `pnpm start` on the bridge.
-- On upload you should see **`[relieflink] uno ready`** in the bridge terminal when it connects; if not, wrong COM port or cable/driver.
-- **`relieflink_handoff_uno.ino`** uses the same **`readButtons()`** logic as **`ledger.ino`** (solo release-to-fire, chord handling). If your build already works with `ledger.ino`, wiring matches.
-- Set **`RELIEFLINK_USE_GROVE_RGB_LCD 0`** to rule out the display locking I2C.
-- Buttons: **D2/D3** to **GND** (pull-up: **pressed = LOW**). To use other pins, change **`PIN_BTN1` / `PIN_BTN2`** in the sketch (same as ledger’s `PIN_BTN1` / `PIN_BTN2`).
-
-## USB bridge (field laptop)
+## USB bridge (driver laptop)
 
 **Node.js 20+**.
 
@@ -61,26 +63,24 @@ pnpm install
 cp env.example .env
 ```
 
-**`.env` essentials**
+`.env` essentials:
 
-- `RELIEFLINK_API_URL` — full URL to `/api/transfer`.
-- `TRANSFER_SECRET` — matches the server (HMAC + station API).
-- `TRANSFER_PIN` — same as server when PIN is enforced.
-- `DEVICE_ID` — same string you register on **`/stations`**.
+- `RELIEFLINK_API_URL` — full URL to `/api/transfer` (e.g.
+  `http://localhost:3000/api/transfer` or your deployed URL).
+- `TRANSFER_SECRET` — matches the server (HMAC for `/api/transfer` and for the
+  device-register header).
+- `DEVICE_ID` — the identifier the admin binds to a shipment leg in the UI.
+  This is the only thing that identifies the driver to the server.
 - `SERIAL_PORT` — e.g. `COM5` on Windows (omit once to list ports).
-- `ASSIGNMENT_POLL_MS` — how often to refresh LCD from UI (default `8000`).
 
 ```bash
 pnpm start
 ```
 
-After you **Save** a station row in the UI, the bridge picks it up on the next poll or right before posting.
+On startup the bridge POSTs `{"deviceId": "..."}` to
+`POST /api/devices/register` so unknown devices surface in the dashboard as
+"pending" nodes — the admin can then promote them to real nodes on the map.
 
-## API
-
-- **`GET /api/handoff-station/[deviceId]`** — assignment for the bridge; header `x-relieflink-secret: TRANSFER_SECRET`.
-- **`PUT /api/handoff-station/[deviceId]`** — set assignment from the dashboard (no secret).
-- **`GET /api/handoff-stations`** — list stations for the dashboard (no secret).
-- **`POST /api/transfer`** — unchanged; body still `batchId`, `from`, `to`, `deviceId`, `pin`; HMAC signing.
-
-See the root [README.md](../../README.md) for custody rules and Solana.
+Each `TAP\n` line from the Arduino results in one signed
+`POST /api/transfer` call. If the device has no active leg assigned, the
+server returns 404 and the bridge logs that.

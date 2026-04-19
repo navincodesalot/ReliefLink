@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { verifyTransferAuth } from "@/lib/auth";
 import { connectDb } from "@/lib/db";
 import { processTap } from "@/lib/tap-handler";
 import {
@@ -14,33 +13,24 @@ import {
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const TransferSchema = z.object({
-  deviceId: z
-    .string()
-    .min(1)
-    .max(64)
-    .regex(/^[-a-zA-Z0-9._]+$/),
+const SimulateTapSchema = z.object({
+  legIndex: z.number().int().nonnegative(),
 });
 
-export async function POST(req: Request) {
-  const rawBody = await req.text();
+export async function POST(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
 
-  const auth = verifyTransferAuth(req.headers, rawBody);
-  if (!auth.ok) {
-    return NextResponse.json(
-      { error: `unauthorized: ${auth.reason}` },
-      { status: 401 },
-    );
-  }
-
-  let json: unknown;
+  let body: unknown;
   try {
-    json = JSON.parse(rawBody);
+    body = await req.json();
   } catch {
     return NextResponse.json({ error: "invalid json" }, { status: 400 });
   }
 
-  const parsed = TransferSchema.safeParse(json);
+  const parsed = SimulateTapSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       { error: "validation", details: parsed.error.flatten() },
@@ -51,8 +41,9 @@ export async function POST(req: Request) {
   await connectDb();
 
   const result = await processTap({
-    source: "hardware_tap",
-    deviceId: parsed.data.deviceId,
+    source: "simulated_tap",
+    shipmentId: id,
+    legIndex: parsed.data.legIndex,
   });
 
   if (!result.ok) {

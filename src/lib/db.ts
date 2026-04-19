@@ -1,9 +1,25 @@
+import dns from "node:dns";
 import mongoose from "mongoose";
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
 if (!MONGODB_URI) {
   throw new Error("MONGODB_URI is not set. Copy .env.example to .env.");
+}
+
+const dnsServers = (process.env.DNS_SERVERS ?? "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+if (dnsServers.length) {
+  try {
+    dns.setServers(dnsServers);
+    console.log(
+      `[relieflink/db] DNS override active: ${dns.getServers().join(", ")}`,
+    );
+  } catch (err) {
+    console.warn("[relieflink/db] dns.setServers failed:", err);
+  }
 }
 
 type Cached = {

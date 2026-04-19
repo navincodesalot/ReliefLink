@@ -1,34 +1,34 @@
 ---
 name: relieflink node network rework
-overview: "Rework ReliefLink from a single-hop \"batch\" flow into a UN-style node network: admin operations dashboard creates multi-hop shipment jobs between seeded + newly-onboarded store nodes, a driver page tracks assigned jobs, a 2-Arduino tap (copper-wire \"NFC\" + buzzer) signs each leg to Solana testnet, and a live OpenStreetMap + progress bars show everything in real time."
+overview: 'Rework ReliefLink from a single-hop "batch" flow into a UN-style node network: admin operations dashboard creates multi-hop shipment jobs between seeded + newly-onboarded store nodes, a driver page tracks assigned jobs, a 2-Arduino tap (copper-wire "NFC" + buzzer) signs each leg to Solana testnet, and a live OpenStreetMap + progress bars show everything in real time.'
 todos:
   - id: phase1-data
     content: "Phase 1: New models (Node, Shipment, ShipmentLeg, rewritten TransferEvent); delete legacy Batch/HandoffStation/PIN models"
-    status: pending
+    status: completed
   - id: phase1-api
     content: "Phase 1: New API routes (/api/nodes, /api/shipments, /api/transfer rewrite, /api/driver/[deviceId]/jobs, /api/devices/register, simulate-tap); delete legacy routes"
-    status: pending
+    status: completed
   - id: phase1-seed
     content: "Phase 1: scripts/seed-nodes.ts seeding 4 nodes with coordinates; verify via curl"
-    status: pending
+    status: completed
   - id: phase2-map
     content: "Phase 2: Install leaflet + react-leaflet; build NetworkMap component with OpenStreetMap tiles"
-    status: pending
+    status: completed
   - id: phase2-dashboard
     content: "Phase 2: Rewrite dashboard-home with CreateNodeForm, CreateShipmentForm, ShipmentsTable (progress bars + Solana badges), Simulate-tap button"
-    status: pending
+    status: completed
   - id: phase3-driver
     content: "Phase 3: /driver page + DriverConsole polling /api/driver/[deviceId]/jobs; admin assigns driver deviceId to legs"
-    status: pending
+    status: completed
   - id: phase4-firmware
     content: "Phase 4: New driver_tag.ino + store_beacon.ino — contact closure only; store buzzes after 3s; driver prints TAP over USB; delete legacy PIN firmware"
-    status: pending
+    status: completed
   - id: phase4-bridge
     content: "Phase 4: Rewrite usb-bridge/bridge.mjs to forward TAP lines and POST /api/transfer (deviceId only); drop PIN logic"
-    status: pending
+    status: completed
   - id: phase5-onboarding
     content: "Phase 5: Device registration + 'Promote to node' admin flow for newly flashed Arduinos"
-    status: pending
+    status: completed
 isProject: false
 ---
 
@@ -58,8 +58,6 @@ flowchart LR
   API --> Admin
   API --> Driver
 ```
-
-
 
 ## Key files — new and rewritten
 
@@ -138,7 +136,7 @@ No new hardware-side libs.
 Goal: get the new schema live, keep everything else stubbed.
 
 - Add `Node`, `Shipment`, `ShipmentLeg`, rewrite `TransferEvent`.
-- Delete legacy models + routes (`Batch`, `HandoffStation`, `/api/batch`*, `/api/batches`, `/api/handoff-station`*, `/api/voice`, `[src/lib/pin.ts](src/lib/pin.ts)`).
+- Delete legacy models + routes (`Batch`, `HandoffStation`, `/api/batch`_, `/api/batches`, `/api/handoff-station`_, `/api/voice`, `[src/lib/pin.ts](src/lib/pin.ts)`).
 - Implement `/api/nodes` CRUD, `/api/shipments` create + list + detail, `/api/transfer` (new body), `/api/driver/[deviceId]/jobs`, `/api/devices/register`.
 - Update `[src/lib/transfer-logic.ts](src/lib/transfer-logic.ts)` + `[src/lib/solana-memo.ts](src/lib/solana-memo.ts)` memo payload.
 - Write `scripts/seed-nodes.ts`; run it.
@@ -204,4 +202,3 @@ To keep legacy out of the way:
 ## Resolved (plan iteration)
 
 - **Tap protocol:** Implicit next hop — contact closure on both boards; driver sends `TAP` over USB; server uses assigned leg only; store buzzes after 3s; **no ID on the wire**.
-

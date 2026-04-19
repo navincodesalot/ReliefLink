@@ -58,17 +58,19 @@ export function explorerUrl(signature: string): string {
 }
 
 export function buildMemoPayload(input: {
-  batchId: string;
-  from: string;
-  to: string;
+  shipmentId: string;
+  legIndex: number;
+  fromNodeId: string;
+  toNodeId: string;
   deviceId: string;
   eventId: string;
   timestamp: string;
 }): string {
   return [
     "ReliefLink",
-    `batch=${input.batchId}`,
-    `${input.from}->${input.to}`,
+    `shipment=${input.shipmentId}`,
+    `leg=${input.legIndex}`,
+    `${input.fromNodeId}->${input.toNodeId}`,
     `device=${input.deviceId}`,
     `event=${input.eventId}`,
     `t=${input.timestamp}`,
