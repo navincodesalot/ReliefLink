@@ -1,7 +1,9 @@
 import { Shipment, type IShipment } from "@/lib/models/Shipment";
 import { ShipmentLeg, type IShipmentLeg } from "@/lib/models/ShipmentLeg";
 
-const STALE_MS = Number(process.env.STALE_MS ?? 120_000);
+/** No tap / no leg progress within this window → flagged. After a tap, the
+ *  delivery photo deadline is `proofDueAt` (see `DELIVERY_PROOF_WINDOW_MS`), not `STALE_MS`. */
+const STALE_MS = Number(process.env.STALE_MS ?? 45_000);
 
 export type AnomalyCheck = {
   isAnomaly: boolean;
@@ -34,16 +36,23 @@ export function evaluateLegTap(
 }
 
 /**
- * Idempotently flag shipments that have stalled mid-route (no progress past STALE_MS).
- * Called on every list read so we don't need a cron.
+ * Idempotently flag shipments that have stalled mid-route (no progress past STALE_MS
+ * while still waiting on an active leg). Shipments with a leg in `awaiting_proof` are
+ * skipped: the driver already tapped; only the photo window (`proofDueAt`) can expire.
  */
 export async function flagStaleShipments(): Promise<number> {
   const threshold = new Date(Date.now() - STALE_MS);
+  const awaitingProofShipmentIds = await ShipmentLeg.distinct("shipmentId", {
+    status: "awaiting_proof",
+  });
   const res = await Shipment.updateMany(
     {
       status: { $in: ["created", "in_transit"] },
       isFlagged: false,
       lastUpdated: { $lt: threshold },
+      ...(awaitingProofShipmentIds.length > 0
+        ? { shipmentId: { $nin: awaitingProofShipmentIds } }
+        : {}),
     },
     { $set: { isFlagged: true, status: "flagged" } },
   );
