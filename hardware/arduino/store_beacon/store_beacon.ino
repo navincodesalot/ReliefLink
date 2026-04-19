@@ -1,30 +1,24 @@
 /**
- * ReliefLink store_beacon — battery-powered Arduino Uno at a delivery node
+ * ReliefLink store_beacon — battery-powered Arduino at a delivery node
  *
- * Purpose
- * -------
- * Local confirmation only. This board has no network, no USB, and never tells
- * anyone who it is. When the copper pad on this board briefly connects to the
- * driver's copper pad (shared tap line to common GND), we count a contact,
- * wait 3 seconds, then pulse the buzzer so the person at the beacon knows the
- * handoff was received.
+ * Contact on D2 starts a 3s countdown, then the buzzer sounds. Optional Grove
+ * RGB LCD (I2C) shows stage: idle / confirming / complete. No serial, no
+ * store ID on the wire.
  *
- * The cryptographic proof of who just handed off what is produced on the
- * server side from the driver's assigned leg — not from anything this board
- * says. This sketch is purely a physical "acknowledge" buzz.
- *
- * Wiring
- * ------
- *   Tap pad    -> D2 (INPUT_PULLUP; contact = LOW)
- *   GND        -> shared with driver Arduino (common ground on the tap line)
- *   Buzzer +   -> D9 (use a ~100ohm series resistor for a passive piezo)
- *   Buzzer -   -> GND
- *   Power      -> 9V battery to Vin, or 5V via USB charger to 5V pin
- *
- * Optional: a battery-operated LED on D13 flashes during the 3s countdown.
+ * Wiring:
+ *   Tap D2, GND shared with driver · Buzzer D9 (+ resistor) · LED D13 optional
+ *   Grove RGB LCD: I2C (A4/A5) + 5V/GND — set RELIEFLINK_USE_GROVE_RGB_LCD 0
+ *   if not installed.
  */
 
+#define RELIEFLINK_USE_GROVE_RGB_LCD 1
+
 #include <Arduino.h>
+#if RELIEFLINK_USE_GROVE_RGB_LCD
+#include <Wire.h>
+#include <rgb_lcd.h>
+static rgb_lcd lcd;
+#endif
 
 static const uint8_t PIN_TAP = 2;
 static const uint8_t PIN_BUZZ = 9;
@@ -33,7 +27,6 @@ static const uint8_t PIN_LED = 13;
 static const unsigned long DEBOUNCE_MS = 30;
 static const unsigned long COOLDOWN_MS = 1200;
 static const unsigned long DELAY_MS = 3000;
-/** Tone frequency + duration when the buzzer finally fires. */
 static const unsigned int BUZZ_FREQ = 2200;
 static const unsigned long BUZZ_MS = 700;
 
@@ -47,12 +40,83 @@ static int lastReading = HIGH;
 static int stableState = HIGH;
 static unsigned long lastChangeMs = 0;
 
+#if RELIEFLINK_USE_GROVE_RGB_LCD
+/** Last state we painted (255 = force redraw). */
+static uint8_t lastPaintedState = 255;
+static unsigned long lastPaintedRemSec = 999;
+
+static void lcdLine(uint8_t row, const char *text) {
+  if (row > 1) return;
+  lcd.setCursor(0, row);
+  char buf[17];
+  uint8_t i = 0;
+  for (; i < 16 && text[i]; i++) buf[i] = text[i];
+  for (; i < 16; i++) buf[i] = ' ';
+  buf[16] = '\0';
+  lcd.print(buf);
+}
+
+static void maybeUpdateLcd(unsigned long now) {
+  unsigned long remSec = 0;
+  if (state == WAITING) {
+    const unsigned long elapsed = now - stateStartedMs;
+    const unsigned long rem = elapsed < DELAY_MS ? (DELAY_MS - elapsed) : 0;
+    remSec = (rem + 999UL) / 1000UL;
+    if (remSec > 3UL) remSec = 3UL;
+    if (remSec < 1UL && rem > 0) remSec = 1UL;
+  }
+
+  const uint8_t st = static_cast<uint8_t>(state);
+  bool need = (st != lastPaintedState);
+  if (state == WAITING && remSec != lastPaintedRemSec) need = true;
+  if (!need) return;
+
+  lastPaintedState = st;
+  if (state == WAITING) lastPaintedRemSec = remSec;
+  else lastPaintedRemSec = 999;
+
+  switch (state) {
+    case IDLE:
+      lcd.setRGB(30, 100, 200);
+      lcdLine(0, "ReliefLink");
+      lcdLine(1, "Ready - tap");
+      break;
+
+    case WAITING:
+      lcd.setRGB(200, 140, 40);
+      lcdLine(0, "Tap received");
+      {
+        char line1[17];
+        if (remSec <= 1)
+          snprintf(line1, sizeof(line1), "Verify: 1s");
+        else
+          snprintf(line1, sizeof(line1), "Verify: %lus", remSec);
+        lcdLine(1, line1);
+      }
+      break;
+
+    case BUZZING:
+      lcd.setRGB(40, 200, 90);
+      lcdLine(0, "Handoff OK");
+      lcdLine(1, "Thank you");
+      break;
+  }
+}
+#endif
+
 void setup() {
   pinMode(PIN_TAP, INPUT_PULLUP);
   pinMode(PIN_LED, OUTPUT);
   pinMode(PIN_BUZZ, OUTPUT);
   digitalWrite(PIN_LED, LOW);
   digitalWrite(PIN_BUZZ, LOW);
+
+#if RELIEFLINK_USE_GROVE_RGB_LCD
+  Wire.begin();
+  lcd.begin(16, 2);
+  lastPaintedState = 255;
+  maybeUpdateLcd(millis());
+#endif
 }
 
 static void onContact() {
@@ -62,6 +126,9 @@ static void onContact() {
   lastTapMs = now;
   stateStartedMs = now;
   state = WAITING;
+#if RELIEFLINK_USE_GROVE_RGB_LCD
+  lastPaintedRemSec = 999;
+#endif
 }
 
 void loop() {
@@ -101,8 +168,15 @@ void loop() {
         noTone(PIN_BUZZ);
         digitalWrite(PIN_LED, LOW);
         state = IDLE;
+#if RELIEFLINK_USE_GROVE_RGB_LCD
+        lastPaintedState = 255;
+#endif
       }
       break;
     }
   }
+
+#if RELIEFLINK_USE_GROVE_RGB_LCD
+  maybeUpdateLcd(now);
+#endif
 }

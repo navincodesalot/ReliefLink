@@ -15,7 +15,7 @@ store identity ever travels on the wire.
 | Board | Folder | Power | Sends |
 | ----- | ------ | ----- | ----- |
 | Driver tag | [`driver_tag/driver_tag.ino`](./driver_tag/driver_tag.ino) | USB (from laptop) | `TAP\n` over serial on contact |
-| Store beacon | [`store_beacon/store_beacon.ino`](./store_beacon/store_beacon.ino) | 9V battery | nothing — buzzes after 3s |
+| Store beacon | [`store_beacon/store_beacon.ino`](./store_beacon/store_beacon.ino) | 9V battery | Optional Grove RGB LCD shows tap / countdown / done; buzzes after 3s |
 
 ## Wiring the shared tap
 
@@ -34,24 +34,25 @@ Driver Uno   D2 ─────┐                     ┌───── D2   S
 - Mount the pads a few millimetres apart so they only complete the circuit
   when pressed together.
 
-## Driver Arduino — optional Grove RGB LCD
+## Store Arduino — Grove RGB LCD + buzzer
 
-If you use the Grove Base Shield + LCD, leave `RELIEFLINK_USE_GROVE_RGB_LCD 1`
-in [`driver_tag.ino`](./driver_tag/driver_tag.ino). The bridge can send:
+Optional **Grove RGB LCD** on I2C (Base Shield or wired to **A4/A5**, **5V**,
+**GND**). Set `RELIEFLINK_USE_GROVE_RGB_LCD` to `1` in
+[`store_beacon.ino`](./store_beacon/store_beacon.ino) (default) or `0` if you
+only want LED + buzzer.
 
-```
->0,First line text
->1,Second line
-```
+Stages on the LCD:
 
-Set the define to `0` if no LCD is attached — the tap behavior is unchanged.
-
-## Store Arduino — buzzer
+- **Idle** — “ReliefLink” / “Ready — tap” (blue-ish backlight)
+- **After tap** — “Tap received” / “Verify: Ns” countdown (amber)
+- **After buzz** — “Handoff OK” / “Thank you” (green), then back to idle
 
 - **D9** → passive piezo buzzer `+` (with a ~100Ω series resistor).
 - **GND** → buzzer `-`.
-- Optional LED on **D13** flashes during the 3-second count then stays on
-  while the buzzer sounds.
+- LED on **D13** flashes during the 3-second count, then stays on while the
+  buzzer sounds.
+
+The **driver** board has no LCD; it only sends `TAP` over USB for the bridge.
 
 ## USB bridge (driver laptop)
 

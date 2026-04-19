@@ -39,26 +39,6 @@ function siblingUrl(transferUrl, path) {
   return u.href;
 }
 
-function truncate(s, n) {
-  const t = String(s ?? "");
-  return t.length <= n ? t : t.slice(0, n);
-}
-
-function lcdLines(port, line0, line1) {
-  return new Promise((resolve) => {
-    const lines = [`>0,${truncate(line0, 16)}`, `>1,${truncate(line1, 16)}`];
-    let i = 0;
-    function next() {
-      if (i >= lines.length) return resolve();
-      port.write(`${lines[i]}\n`, () => {
-        i += 1;
-        setTimeout(next, 35);
-      });
-    }
-    next();
-  });
-}
-
 async function registerDevice() {
   const url = siblingUrl(TRANSFER_URL, "/api/devices/register");
   try {
@@ -89,11 +69,9 @@ async function registerDevice() {
   }
 }
 
-async function postTransfer(port) {
+async function postTransfer() {
   const body = JSON.stringify({ deviceId: DEVICE_ID });
   const sig = createHmac("sha256", SECRET).update(body).digest("hex");
-
-  if (port) await lcdLines(port, "Signing…", truncate(DEVICE_ID, 16));
 
   try {
     const res = await fetch(TRANSFER_URL, {
@@ -106,33 +84,9 @@ async function postTransfer(port) {
     });
     const text = await res.text();
     console.log(`[relieflink] POST /api/transfer ${res.status} ${text.slice(0, 400)}`);
-
-    if (port) {
-      if (res.ok) {
-        let short = "OK";
-        try {
-          const parsed = JSON.parse(text);
-          const sigHash = parsed?.leg?.solanaSignature ?? parsed?.event?.solanaSignature;
-          if (sigHash) short = String(sigHash).slice(0, 10) + "…";
-        } catch {
-          /* noop */
-        }
-        await lcdLines(port, "Handoff OK", short);
-      } else {
-        let msg = `HTTP ${res.status}`;
-        try {
-          const parsed = JSON.parse(text);
-          if (parsed?.error) msg = truncate(parsed.error, 16);
-        } catch {
-          /* noop */
-        }
-        await lcdLines(port, "Error", msg);
-      }
-    }
     return res.ok;
   } catch (err) {
     console.error(`[relieflink] transfer network error: ${err?.message ?? err}`);
-    if (port) await lcdLines(port, "Network error", "retrying");
     return false;
   }
 }
@@ -140,7 +94,7 @@ async function postTransfer(port) {
 let lastTapAcceptedMs = 0;
 let tapBusy = false;
 
-async function onTap(port) {
+async function onTap() {
   const now = Date.now();
   if (tapBusy) return;
   if (now - lastTapAcceptedMs < TAP_COOLDOWN_MS) {
@@ -150,7 +104,7 @@ async function onTap(port) {
   lastTapAcceptedMs = now;
   tapBusy = true;
   try {
-    await postTransfer(port);
+    await postTransfer();
   } finally {
     tapBusy = false;
   }
@@ -182,7 +136,7 @@ async function main() {
     if (!line) return;
     if (line === "TAP") {
       console.log("[relieflink] TAP received");
-      void onTap(port);
+      void onTap();
       return;
     }
     console.log(`[relieflink] arduino: ${line}`);
@@ -200,7 +154,6 @@ async function main() {
     `[relieflink] USB bridge ${DEVICE_ID} on ${SERIAL_PATH} @ ${BAUD} → ${TRANSFER_URL}`,
   );
 
-  await lcdLines(port, "ReliefLink", "ready to tap");
   await registerDevice();
 }
 
