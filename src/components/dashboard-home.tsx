@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Activity, Network, Truck } from "lucide-react";
 
-import { AiOperationsPanel } from "@/components/ai-operations-panel";
 import { useLanguage } from "@/components/language-provider";
 import { Button } from "@/components/ui/button";
 import {
@@ -193,8 +192,6 @@ export function DashboardHome({ mode, driversRefreshKey }: DashboardHomeProps) {
           tone={flaggedCount > 0 ? "destructive" : "muted"}
         />
       </section>
-
-      <AiOperationsPanel />
 
       {error ? (
         <Card className="border-destructive/50">
