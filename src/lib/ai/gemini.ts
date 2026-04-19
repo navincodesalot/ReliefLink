@@ -1,4 +1,8 @@
-import type { GeminiPlan } from "@/lib/ai/contracts";
+import { google } from "@ai-sdk/google";
+import { generateObject } from "ai";
+import { z } from "zod";
+
+import { OPS_TOOL_NAMES, type GeminiPlan } from "@/lib/ai/contracts";
 import type { RiskSignal } from "@/lib/ai/risk";
 
 type GeminiInput = {
@@ -16,6 +20,34 @@ type GeminiInput = {
   region?: string;
   severity?: "info" | "warning" | "critical";
 };
+
+const opsToolNameEnum = z.enum(
+  OPS_TOOL_NAMES as unknown as [string, ...string[]],
+);
+
+const geminiPlanSchema = z.discriminatedUnion("mode", [
+  z.object({
+    mode: z.literal("tool_plan"),
+    rationale: z.string(),
+    toolCalls: z.array(
+      z.object({
+        tool: opsToolNameEnum,
+        args: z.record(z.unknown()),
+      }),
+    ),
+  }),
+  z.object({
+    mode: z.literal("final_response"),
+    rationale: z.string(),
+    response: z.object({
+      text: z.string(),
+      language: z.string().optional(),
+      voiceScript: z.string().optional(),
+      severity: z.enum(["info", "warning", "critical"]).optional(),
+      data: z.record(z.unknown()).optional(),
+    }),
+  }),
+]);
 
 function heuristicGemini(input: GeminiInput): GeminiPlan {
   const lc = input.prompt.toLowerCase();
@@ -85,9 +117,9 @@ function heuristicGemini(input: GeminiInput): GeminiPlan {
 
   return {
     mode: "final_response",
-    rationale: "Fallback natural-language answer generated without live Gemini access.",
+    rationale: "Fallback natural-language answer generated without live model access.",
     response: {
-      text: "The request needs interpretation, but no Gemini API key is configured. The deterministic services are ready and can still handle direct tool requests.",
+      text: "The request needs interpretation, but no Google Generative AI API key is configured. Set GOOGLE_GENERATIVE_AI_API_KEY (or GEMINI_API_KEY) for the coordinator.",
       language: input.language,
       severity: "warning",
     },
@@ -95,53 +127,31 @@ function heuristicGemini(input: GeminiInput): GeminiPlan {
 }
 
 export async function callGemini(input: GeminiInput): Promise<GeminiPlan> {
-  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  const apiKey =
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() ??
+    process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) {
     return heuristicGemini(input);
   }
+  if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY = apiKey;
+  }
+
+  const modelId =
+    process.env.COORDINATOR_MODEL?.trim() ||
+    process.env.GEMINI_MODEL?.trim() ||
+    "gemini-2.0-flash";
 
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${process.env.GEMINI_MODEL?.trim() || "gemini-2.0-flash"}:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: "user",
-              parts: [
-                {
-                  text: JSON.stringify(input),
-                },
-              ],
-            },
-          ],
-          generationConfig: {
-            responseMimeType: "application/json",
-          },
-        }),
-      },
-    );
+    const { object } = await generateObject({
+      model: google(modelId),
+      schema: geminiPlanSchema,
+      prompt: `You are ReliefLink's operations coordinator. Choose either a tool_plan (to fetch live MongoDB-backed operational data) or a final_response with natural language. Respond ONLY with JSON that matches the schema.
 
-    if (!response.ok) {
-      throw new Error(`Gemini HTTP ${response.status}`);
-    }
-
-    const json = (await response.json()) as {
-      candidates?: Array<{
-        content?: {
-          parts?: Array<{
-            text?: string;
-          }>;
-        };
-      }>;
-    };
-    const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) throw new Error("Gemini returned no structured content");
-    return JSON.parse(text) as GeminiPlan;
+Request payload:
+${JSON.stringify(input, null, 2)}`,
+    });
+    return object as GeminiPlan;
   } catch {
     return heuristicGemini(input);
   }

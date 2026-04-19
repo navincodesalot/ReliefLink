@@ -67,6 +67,8 @@ export function getEchoAnnouncementCommand(
       token: voiceMonkeyApiKey,
       device: voiceMonkeyDevice,
       text: script,
+      /** Echo Show: hide Voice Monkey logo. Does not affect “Someone is at…” (see .env.example). */
+      no_bg: "true",
     };
     if (meta?.language) body.language = meta.language;
 

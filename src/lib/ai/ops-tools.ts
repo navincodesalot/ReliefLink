@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 import type {
-  McpToolName,
+  OpsToolName,
   RecentActivityItem,
   ToolResult,
   TransferEventFilter,
@@ -20,7 +20,7 @@ function traceId() {
 }
 
 async function withMeta<T>(
-  tool: McpToolName,
+  tool: OpsToolName,
   fn: () => Promise<T>,
 ): Promise<ToolResult<T>> {
   const started = Date.now();
@@ -204,10 +204,7 @@ export async function getRecentActivityTool(limit?: number) {
       severity: shipment.isFlagged ? "critical" : "info",
     }));
 
-    const activity: RecentActivityItem[] = [
-      ...eventActivity,
-      ...shipmentActivity,
-    ]
+    const activity: RecentActivityItem[] = [...eventActivity, ...shipmentActivity]
       .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
       .slice(0, Math.min(limit ?? 25, 100));
 
@@ -215,8 +212,8 @@ export async function getRecentActivityTool(limit?: number) {
   });
 }
 
-export async function executeMcpTool(
-  tool: McpToolName,
+export async function executeOpsTool(
+  tool: OpsToolName,
   args: Record<string, unknown>,
 ) {
   switch (tool) {

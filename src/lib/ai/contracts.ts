@@ -1,6 +1,6 @@
 import type { ShipmentStatus } from "@/lib/constants";
 
-export const MCP_TOOL_NAMES = [
+export const OPS_TOOL_NAMES = [
   "getShipment",
   "getNode",
   "getTransferEvents",
@@ -9,7 +9,7 @@ export const MCP_TOOL_NAMES = [
   "getRecentActivity",
 ] as const;
 
-export type McpToolName = (typeof MCP_TOOL_NAMES)[number];
+export type OpsToolName = (typeof OPS_TOOL_NAMES)[number];
 
 export type ToolResult<T> = {
   ok: boolean;
@@ -65,7 +65,7 @@ export type GeminiPlan =
       mode: "tool_plan";
       rationale: string;
       toolCalls: Array<{
-        tool: McpToolName;
+        tool: OpsToolName;
         args: Record<string, unknown>;
       }>;
     }
@@ -83,10 +83,10 @@ export type GeminiPlan =
 
 export type AiQueryResponse = {
   route:
-    | "mcp_direct"
-    | "mcp_plus_rules"
-    | "gemini_tool_plan"
-    | "gemini_final_response";
+    | "data_tool"
+    | "risk_signal"
+    | "ai_tool_plan"
+    | "ai_response";
   language: string;
   title?: string;
   summary: string;
@@ -115,7 +115,7 @@ export type DeterministicIntent =
   | {
       confidence: number;
       kind: "tool";
-      tool: McpToolName;
+      tool: OpsToolName;
       args: Record<string, unknown>;
     }
   | {

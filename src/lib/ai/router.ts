@@ -4,7 +4,7 @@ import type {
   SessionContext,
 } from "@/lib/ai/contracts";
 import { callGemini } from "@/lib/ai/gemini";
-import { executeMcpTool } from "@/lib/ai/mcp-tools";
+import { executeOpsTool } from "@/lib/ai/ops-tools";
 import { computeRiskSignals } from "@/lib/ai/risk";
 import { buildVoiceAlert } from "@/lib/ai/voice";
 import type { ShipmentJSON, TransferEventJSON } from "@/lib/types";
@@ -209,7 +209,7 @@ export async function handleAiQuery(input: {
   const intent = parseIntent(input.prompt);
 
   if (intent.kind === "tool" && intent.confidence >= 0.9) {
-    const result = await executeMcpTool(intent.tool, intent.args);
+    const result = await executeOpsTool(intent.tool, intent.args);
     const rendered = result.ok
       ? await summarizeToolResult(
           intent.tool,
@@ -220,7 +220,7 @@ export async function handleAiQuery(input: {
       : null;
 
     return {
-      route: "mcp_direct",
+      route: "data_tool",
       language: input.session.resolvedLanguage,
       title: rendered?.title ?? "Operations update",
       summary: result.ok
@@ -236,11 +236,11 @@ export async function handleAiQuery(input: {
 
   if (intent.kind === "complex" && intent.reason === "risk_analysis") {
     const [shipmentsResult, eventsResult] = await Promise.all([
-      executeMcpTool("queryShipmentsByStatus", {
+      executeOpsTool("queryShipmentsByStatus", {
         status: "in_transit",
         limit: 250,
       }),
-      executeMcpTool("getTransferEvents", {
+      executeOpsTool("getTransferEvents", {
         from: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
         limit: 250,
       }),
@@ -271,7 +271,7 @@ export async function handleAiQuery(input: {
           : undefined;
 
       return {
-        route: "mcp_plus_rules",
+        route: "risk_signal",
         language: input.session.resolvedLanguage,
         title: "Regional shipment risk",
         summary: await maybeTranslate(
@@ -308,7 +308,7 @@ export async function handleAiQuery(input: {
           : undefined;
 
       return {
-        route: "gemini_final_response",
+        route: "ai_response",
         language: input.session.resolvedLanguage,
         title: "Regional shipment risk",
         summary:
@@ -352,11 +352,11 @@ export async function handleAiQuery(input: {
   if (gemini.mode === "tool_plan") {
     const results = [];
     for (const call of gemini.toolCalls) {
-      results.push(await executeMcpTool(call.tool, call.args));
+      results.push(await executeOpsTool(call.tool, call.args));
     }
 
     return {
-      route: "gemini_tool_plan",
+      route: "ai_tool_plan",
       language: input.session.resolvedLanguage,
       title: "Coordinator query",
       summary: await maybeTranslate(
@@ -380,7 +380,7 @@ export async function handleAiQuery(input: {
       : undefined;
 
   return {
-    route: "gemini_final_response",
+    route: "ai_response",
     language: input.session.resolvedLanguage,
     title: "Coordinator query",
     summary:
