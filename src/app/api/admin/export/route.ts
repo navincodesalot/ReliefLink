@@ -182,6 +182,10 @@ export async function GET(req: Request) {
         "completedAt",
         "transferEventId",
         "solanaSignature",
+        "deliveryQuality",
+        "deliveryMatchesManifest",
+        "proofSkippedReason",
+        "deliveryProofNotes",
       ];
       let csv = csvRow(header);
       for (const leg of allLegs) {
@@ -197,6 +201,12 @@ export async function GET(req: Request) {
           leg.completedAt ? new Date(leg.completedAt).toISOString() : "",
           leg.transferEventId ?? "",
           leg.solanaSignature ?? "",
+          leg.deliveryQuality ?? "",
+          typeof leg.deliveryMatchesManifest === "boolean"
+            ? String(leg.deliveryMatchesManifest)
+            : "",
+          leg.proofSkippedReason ?? "",
+          leg.deliveryProofNotes ?? "",
         ]);
       }
       return new NextResponse("\uFEFF" + csv, {

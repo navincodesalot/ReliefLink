@@ -4,16 +4,20 @@ import confetti from "canvas-confetti";
 import {
   AlertTriangle,
   ArrowRight,
+  Camera,
   CheckCircle2,
   ExternalLink,
   MapPin,
   Radio,
+  RefreshCw,
   Truck,
+  Upload,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { SearchableSelect, type SearchOption } from "@/components/searchable-select";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,9 +28,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import { formatDistanceKm, haversineKm } from "@/lib/geo";
+import { runStagedLedgerUi } from "@/lib/staged-ledger-ui";
 import type { DriverJobJSON } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+const PROOF_WINDOW_MS = 120_000;
 
 const STORAGE_KEY = "relieflink.driverDeviceId";
 const POLL_MS = 2500;
@@ -237,6 +245,7 @@ export function DriverConsole() {
               loading={loading}
               error={error}
               livePos={livePos}
+              refresh={() => void load(deviceId)}
             />
             <DriverEmergencyPanel deviceId={deviceId} />
           </>
@@ -244,6 +253,252 @@ export function DriverConsole() {
       </div>
     </div>
   );
+}
+
+function renderQualityBadge(leg: NonNullable<DriverJobJSON["leg"]>) {
+  if (leg.deliveryQuality === "good") return <Badge variant="success">good</Badge>;
+  if (leg.deliveryQuality === "acceptable")
+    return <Badge variant="warning">acceptable</Badge>;
+  if (leg.deliveryQuality === "poor")
+    return <Badge variant="destructive">poor condition</Badge>;
+  if (leg.deliveryMatchesManifest === false)
+    return <Badge variant="destructive">manifest mismatch</Badge>;
+  return null;
+}
+
+function ProofCapturePanel({
+  deviceId,
+  proofDueAt,
+  refresh,
+}: {
+  deviceId: string;
+  proofDueAt: string | null;
+  refresh: () => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+
+  const deadlineMs = useMemo(
+    () => (proofDueAt ? new Date(proofDueAt).getTime() : null),
+    [proofDueAt],
+  );
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  const msLeft = deadlineMs ? Math.max(0, deadlineMs - now) : 0;
+  const secondsLeft = Math.ceil(msLeft / 1000);
+  const expired = deadlineMs !== null && msLeft <= 0;
+  const pct = deadlineMs ? (msLeft / PROOF_WINDOW_MS) * 100 : 0;
+
+  function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const next = e.target.files?.[0] ?? null;
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setFile(next);
+    setPreviewUrl(next ? URL.createObjectURL(next) : null);
+  }
+
+  async function submit() {
+    if (!file) {
+      toast.error("Take a photo of the goods first.");
+      return;
+    }
+    if (expired) {
+      toast.error("The 2-minute window expired. Refresh to see the updated status.");
+      refresh();
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const resized = await downscaleImage(file, 1600);
+      const form = new FormData();
+      form.append("deviceId", deviceId);
+      form.append("photo", resized, "delivery.jpg");
+
+      const data = await runStagedLedgerUi<{
+        verdict?: {
+          matchesManifest: boolean;
+          quality: "good" | "acceptable" | "poor";
+          rationale: string;
+          flagged: boolean;
+        };
+        error?: string;
+      }>({
+        steps: [
+          { label: "Uploading delivery photo…" },
+          { label: "Verifying items with Gemini…" },
+          { label: "Anchoring handoff on Solana…" },
+        ],
+        successLabel: "Delivery verified and anchored.",
+        errorLabel: "Photo verification failed.",
+        run: async () => {
+          const res = await fetch("/api/driver/delivery-proof", {
+            method: "POST",
+            body: form,
+          });
+          const json = (await res.json()) as {
+            error?: string;
+            verdict?: {
+              matchesManifest: boolean;
+              quality: "good" | "acceptable" | "poor";
+              rationale: string;
+              flagged: boolean;
+            };
+          };
+          if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+          return json;
+        },
+      });
+
+      if (data.verdict) {
+        const { matchesManifest, quality, rationale, flagged } = data.verdict;
+        if (flagged) {
+          toast.warning(
+            matchesManifest
+              ? `Delivered but quality flagged as ${quality}.`
+              : "Delivered but goods do not match the manifest.",
+            { description: rationale },
+          );
+        } else {
+          toast.success(`Delivery verified (${quality}).`, { description: rationale });
+        }
+      }
+      setFile(null);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      refresh();
+    } catch {
+      // runStagedLedgerUi already surfaced the error toast.
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <Alert className="border-blue-500/40 bg-blue-500/10">
+        <Camera className="h-4 w-4" />
+        <AlertTitle>Delivery photo required</AlertTitle>
+        <AlertDescription>
+          Capture the goods you delivered so AI can verify the shipment. You have{" "}
+          <span className="font-mono font-semibold">
+            {secondsLeft > 0 ? `${secondsLeft}s` : "0s"}
+          </span>{" "}
+          before this leg is flagged for audit.
+        </AlertDescription>
+      </Alert>
+
+      <Progress
+        value={pct}
+        className={cn(
+          "h-2",
+          expired
+            ? "[&>div]:bg-destructive"
+            : msLeft < 30_000
+              ? "[&>div]:bg-destructive"
+              : msLeft < 60_000
+                ? "[&>div]:bg-amber-500"
+                : "[&>div]:bg-blue-500",
+        )}
+      />
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="sr-only"
+        onChange={onFileChange}
+      />
+
+      {previewUrl ? (
+        <div className="overflow-hidden rounded-md border">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={previewUrl}
+            alt="Delivery preview"
+            className="h-48 w-full object-cover sm:h-64"
+          />
+        </div>
+      ) : null}
+
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Button
+          type="button"
+          size="lg"
+          variant={file ? "outline" : "default"}
+          className="h-12 flex-1 text-base"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={submitting || expired}
+        >
+          <Camera className="h-5 w-5" />
+          {file ? "Retake photo" : "Take photo of goods"}
+        </Button>
+        <Button
+          type="button"
+          size="lg"
+          className="h-12 flex-1 text-base"
+          onClick={() => void submit()}
+          disabled={!file || submitting || expired}
+        >
+          <Upload className="h-5 w-5" />
+          {submitting ? "Verifying…" : "Submit delivery photo"}
+        </Button>
+      </div>
+
+      {expired ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={refresh}
+          className="w-full"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Refresh status
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Downscales an image client-side so mobile uploads stay under the API limit
+ * and Gemini gets a reasonably sized frame. Returns a JPEG blob.
+ */
+async function downscaleImage(file: File, maxDim: number): Promise<Blob> {
+  if (typeof window === "undefined") return file;
+  const bitmap = await createImageBitmap(file).catch(() => null);
+  if (!bitmap) return file;
+  try {
+    const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
+    const width = Math.round(bitmap.width * scale);
+    const height = Math.round(bitmap.height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    const blob: Blob | null = await new Promise((resolve) =>
+      canvas.toBlob((b) => resolve(b), "image/jpeg", 0.85),
+    );
+    return blob ?? file;
+  } finally {
+    bitmap.close?.();
+  }
 }
 
 async function fireCelebration() {
@@ -320,12 +575,14 @@ function JobCard({
   loading,
   error,
   livePos,
+  refresh,
 }: {
   job: DriverJobJSON | null;
   deviceId: string;
   loading: boolean;
   error: string | null;
   livePos: { lat: number; lng: number } | null;
+  refresh: () => void;
 }) {
   if (error) {
     return (
@@ -365,9 +622,11 @@ function JobCard({
   }
 
   const inTransit = leg.status === "in_transit";
+  const awaitingProof = leg.status === "awaiting_proof";
   const done = leg.status === "done";
   const latestSig = shipment.latestSolanaExplorerUrl;
   const progress = shipment.progressPct;
+  const qualityBadge = renderQualityBadge(leg);
 
   const distKm =
     livePos && job.toNode
@@ -385,8 +644,18 @@ function JobCard({
               {shipment.quantity ? ` · ${shipment.quantity} units` : ""}
             </CardDescription>
           </div>
-          <Badge variant={done ? "success" : inTransit ? "warning" : "secondary"}>
-            {leg.status}
+          <Badge
+            variant={
+              done
+                ? "success"
+                : inTransit
+                  ? "warning"
+                  : awaitingProof
+                    ? "secondary"
+                    : "secondary"
+            }
+          >
+            {awaitingProof ? "photo required" : leg.status}
           </Badge>
         </div>
       </CardHeader>
@@ -454,29 +723,43 @@ function JobCard({
           </div>
         </div>
 
-        <div
-          className={cn(
-            "rounded-md border p-3 text-sm",
-            inTransit && "border-amber-500/40 bg-amber-500/10",
-            done && "border-emerald-500/40 bg-emerald-500/10",
-          )}
-        >
-          {inTransit ? (
-            <div className="flex items-center gap-2">
-              <Radio className="h-4 w-4 animate-pulse text-amber-600" />
-              <div>
-                <div className="font-medium">Waiting for tap at destination</div>
-                <div className="text-xs text-muted-foreground">
-                  Touch the driver&apos;s copper pad to the beacon&apos;s pad. The store will
-                  buzz after 3 seconds and the handoff will sign on Solana.
+        {awaitingProof ? (
+          <ProofCapturePanel
+            deviceId={deviceId}
+            proofDueAt={leg.proofDueAt}
+            refresh={refresh}
+          />
+        ) : (
+          <div
+            className={cn(
+              "rounded-md border p-3 text-sm",
+              inTransit && "border-amber-500/40 bg-amber-500/10",
+              done && "border-emerald-500/40 bg-emerald-500/10",
+            )}
+          >
+            {inTransit ? (
+              <div className="flex items-center gap-2">
+                <Radio className="h-4 w-4 animate-pulse text-amber-600" />
+                <div>
+                  <div className="font-medium">Waiting for tap at destination</div>
+                  <div className="text-xs text-muted-foreground">
+                    Touch the driver&apos;s copper pad to the beacon&apos;s pad. The store
+                    will buzz after 3 seconds and the handoff will sign on Solana.
+                  </div>
                 </div>
               </div>
-            </div>
-          ) : done ? (
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-              <div>
-                <div className="font-medium">Leg complete</div>
+            ) : done ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">Leg complete</span>
+                    {qualityBadge}
+                    {leg.proofSkippedReason === "timeout" ? (
+                      <Badge variant="warning">photo missed</Badge>
+                    ) : null}
+                  </div>
+                </div>
                 {leg.solanaExplorerUrl ? (
                   <a
                     href={leg.solanaExplorerUrl}
@@ -487,12 +770,17 @@ function JobCard({
                     view chain anchor <ExternalLink className="h-3 w-3" />
                   </a>
                 ) : null}
+                {leg.deliveryProofNotes ? (
+                  <p className="text-xs text-muted-foreground">
+                    {leg.deliveryProofNotes}
+                  </p>
+                ) : null}
               </div>
-            </div>
-          ) : (
-            <div className="text-muted-foreground">Leg is {leg.status}.</div>
-          )}
-        </div>
+            ) : (
+              <div className="text-muted-foreground">Leg is {leg.status}.</div>
+            )}
+          </div>
+        )}
 
         {latestSig ? (
           <div className="text-xs text-muted-foreground">

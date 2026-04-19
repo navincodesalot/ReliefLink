@@ -1,7 +1,14 @@
 import mongoose from "mongoose";
 import type { Model, HydratedDocument } from "mongoose";
 
-import { LEG_STATUSES, type LegStatus } from "@/lib/constants";
+import {
+  DELIVERY_QUALITIES,
+  LEG_STATUSES,
+  PROOF_SKIPPED_REASONS,
+  type DeliveryQuality,
+  type LegStatus,
+  type ProofSkippedReason,
+} from "@/lib/constants";
 
 const { Schema, model, models } = mongoose;
 
@@ -20,6 +27,16 @@ export interface IShipmentLeg {
   completedAt?: Date;
   transferEventId?: string;
   solanaSignature?: string;
+  /** Deadline by which the driver must upload a delivery photo after tap. */
+  proofDueAt?: Date;
+  /** AI-assessed quality of the delivered goods; null if the timeout path was used. */
+  deliveryQuality?: DeliveryQuality;
+  /** Why proof was skipped (e.g. `"timeout"`); used for audit. */
+  proofSkippedReason?: ProofSkippedReason;
+  /** AI rationale stored for admin audit. */
+  deliveryProofNotes?: string;
+  /** Whether the AI said the image matches the shipment manifest. */
+  deliveryMatchesManifest?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -39,6 +56,11 @@ const ShipmentLegSchema = new Schema<IShipmentLeg>(
     completedAt: { type: Date },
     transferEventId: { type: String },
     solanaSignature: { type: String },
+    proofDueAt: { type: Date },
+    deliveryQuality: { type: String, enum: DELIVERY_QUALITIES },
+    proofSkippedReason: { type: String, enum: PROOF_SKIPPED_REASONS },
+    deliveryProofNotes: { type: String },
+    deliveryMatchesManifest: { type: Boolean },
   },
   { timestamps: true },
 );

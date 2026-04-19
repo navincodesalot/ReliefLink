@@ -1,6 +1,8 @@
 import type {
+  DeliveryQuality,
   LegStatus,
   NodeKind,
+  ProofSkippedReason,
   ShipmentStatus,
   TapSourceLiteral,
 } from "@/lib/constants";
@@ -35,6 +37,11 @@ export type ShipmentLegJSON = {
   transferEventId: string | null;
   solanaSignature: string | null;
   solanaExplorerUrl: string | null;
+  proofDueAt: string | null;
+  deliveryQuality: DeliveryQuality | null;
+  deliveryMatchesManifest: boolean | null;
+  proofSkippedReason: ProofSkippedReason | null;
+  deliveryProofNotes: string | null;
 };
 
 export type ShipmentJSON = {

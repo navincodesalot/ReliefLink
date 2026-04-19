@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight, ExternalLink, Flag, Radio } from "lucide-react";
 import { toast } from "sonner";
 
@@ -276,6 +276,7 @@ export function ShipmentsTable({
                                         tx <ExternalLink className="h-3 w-3" />
                                       </a>
                                     ) : null}
+                                    <LegQualityBadges leg={leg} />
                                   </div>
                                   {readOnly ? (
                                     <div className="text-xs text-muted-foreground">
@@ -435,15 +436,63 @@ function StatusPill({ shipment }: { shipment: ShipmentJSON }) {
   return <Badge variant="secondary">{shipment.status}</Badge>;
 }
 
+function LegQualityBadges({ leg }: { leg: ShipmentLegJSON }) {
+  const badges: ReactNode[] = [];
+  if (leg.status === "awaiting_proof") {
+    badges.push(
+      <Badge key="awaiting" variant="secondary">
+        awaiting photo
+      </Badge>,
+    );
+  }
+  if (leg.deliveryQuality === "poor") {
+    badges.push(
+      <Badge key="poor" variant="destructive">
+        poor condition
+      </Badge>,
+    );
+  } else if (leg.deliveryQuality === "acceptable") {
+    badges.push(
+      <Badge key="acceptable" variant="warning">
+        acceptable
+      </Badge>,
+    );
+  } else if (leg.deliveryQuality === "good") {
+    badges.push(
+      <Badge key="good" variant="success">
+        good
+      </Badge>,
+    );
+  }
+  if (leg.deliveryMatchesManifest === false) {
+    badges.push(
+      <Badge key="mismatch" variant="destructive">
+        manifest mismatch
+      </Badge>,
+    );
+  }
+  if (leg.proofSkippedReason === "timeout") {
+    badges.push(
+      <Badge key="timeout" variant="warning">
+        photo missed
+      </Badge>,
+    );
+  }
+  if (badges.length === 0) return null;
+  return <span className="ml-2 inline-flex flex-wrap gap-1">{badges}</span>;
+}
+
 function LegStatusDot({ status }: { status: ShipmentLegJSON["status"] }) {
   const color =
     status === "done"
       ? "bg-emerald-500"
       : status === "in_transit"
         ? "bg-amber-500"
-        : status === "flagged"
-          ? "bg-destructive"
-          : "bg-muted-foreground";
+        : status === "awaiting_proof"
+          ? "bg-blue-500"
+          : status === "flagged"
+            ? "bg-destructive"
+            : "bg-muted-foreground";
   return <span className={cn("h-2 w-2 rounded-full", color)} />;
 }
 

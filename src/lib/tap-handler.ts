@@ -1,3 +1,4 @@
+import { DELIVERY_PROOF_WINDOW_MS, type DeliveryQuality, type ProofSkippedReason } from "@/lib/constants";
 import { NodeModel, type NodeDoc } from "@/lib/models/Node";
 import { Shipment, type ShipmentDoc } from "@/lib/models/Shipment";
 import { ShipmentLeg, type ShipmentLegDoc } from "@/lib/models/ShipmentLeg";
@@ -113,9 +114,110 @@ export async function processTap(input: TapInput): Promise<TapResult> {
     return { ok: true, shipment, leg, event, fromNode, toNode };
   }
 
+  /**
+   * Hardware taps now require a delivery photo before the leg is marked
+   * `done` and anchored on Solana. Simulated taps (dashboard testing) keep
+   * the legacy immediate-finalize behaviour so admins can complete flows
+   * without standing up the driver PWA.
+   */
+  if (input.source === "hardware_tap") {
+    leg.status = "awaiting_proof";
+    leg.proofDueAt = new Date(timestamp.getTime() + DELIVERY_PROOF_WINDOW_MS);
+    leg.transferEventId = String(event._id);
+    await leg.save();
+
+    shipment.lastUpdated = timestamp;
+    await shipment.save();
+
+    const [fromNode, toNode] = await Promise.all([
+      NodeModel.findOne({ nodeId: leg.fromNodeId }),
+      NodeModel.findOne({ nodeId: leg.toNodeId }),
+    ]);
+    return { ok: true, shipment, leg, event, fromNode, toNode };
+  }
+
+  const finalized = await finalizeLegAfterProof({
+    shipment,
+    leg,
+    event,
+    deviceId,
+    timestamp,
+  });
+  return finalized;
+}
+
+/**
+ * If a leg is stuck in `awaiting_proof` past its deadline, finalize it with
+ * `flagShipment: true` and `proofSkippedReason: "timeout"`. Safe to call on
+ * any leg — returns `null` if no action was needed.
+ */
+export async function finalizeExpiredProofLeg(
+  leg: ShipmentLegDoc,
+): Promise<TapResult | null> {
+  if (leg.status !== "awaiting_proof") return null;
+  if (!leg.proofDueAt || leg.proofDueAt.getTime() > Date.now()) return null;
+
+  const shipment = await Shipment.findOne({ shipmentId: leg.shipmentId });
+  if (!shipment) return null;
+
+  const event = leg.transferEventId
+    ? await TransferEvent.findById(leg.transferEventId)
+    : null;
+  if (!event) return null;
+
+  return finalizeLegAfterProof({
+    shipment,
+    leg,
+    event,
+    deviceId: event.deviceId,
+    flagShipment: true,
+    proofSkippedReason: "timeout",
+    proofNotes: "Delivery photo not uploaded within 2-minute window",
+  });
+}
+
+export type FinalizeProofInput = {
+  shipment: ShipmentDoc;
+  leg: ShipmentLegDoc;
+  event: TransferEventDoc;
+  deviceId: string;
+  timestamp?: Date;
+  deliveryQuality?: DeliveryQuality;
+  matchesManifest?: boolean;
+  proofSkippedReason?: ProofSkippedReason;
+  proofNotes?: string;
+  /** Force-flag the shipment for audit (e.g. poor quality, mismatch, timeout). */
+  flagShipment?: boolean;
+};
+
+/**
+ * Anchors the leg on Solana and advances the shipment. Shared by the
+ * delivery-proof API and the timeout path in the driver jobs route.
+ * Idempotent — re-running on an already-`done` leg returns the existing state.
+ */
+export async function finalizeLegAfterProof(
+  input: FinalizeProofInput,
+): Promise<TapResult> {
+  const { shipment, leg, event, deviceId } = input;
+  const timestamp = input.timestamp ?? new Date();
+
+  if (leg.status === "done") {
+    const [fromNode, toNode] = await Promise.all([
+      NodeModel.findOne({ nodeId: leg.fromNodeId }),
+      NodeModel.findOne({ nodeId: leg.toNodeId }),
+    ]);
+    return { ok: true, shipment, leg, event, fromNode, toNode };
+  }
+
   leg.status = "done";
   leg.completedAt = timestamp;
-  leg.transferEventId = String(event._id);
+  if (!leg.transferEventId) leg.transferEventId = String(event._id);
+  if (input.deliveryQuality) leg.deliveryQuality = input.deliveryQuality;
+  if (typeof input.matchesManifest === "boolean") {
+    leg.deliveryMatchesManifest = input.matchesManifest;
+  }
+  if (input.proofSkippedReason) leg.proofSkippedReason = input.proofSkippedReason;
+  if (input.proofNotes) leg.deliveryProofNotes = input.proofNotes;
 
   const memo = buildMemoPayload({
     shipmentId: shipment.shipmentId,
@@ -139,6 +241,11 @@ export async function processTap(input: TapInput): Promise<TapResult> {
     event.memoPayload = chain.memo;
     event.notes = `chain anchor failed: ${chain.error}`;
   }
+  if (input.proofNotes) {
+    event.notes = event.notes
+      ? `${event.notes}; ${input.proofNotes}`
+      : input.proofNotes;
+  }
   await event.save();
   await leg.save();
 
@@ -151,7 +258,12 @@ export async function processTap(input: TapInput): Promise<TapResult> {
   shipment.progressPct = progressPct;
   shipment.currentHolderNodeId = leg.toNodeId;
   shipment.lastUpdated = timestamp;
-  shipment.status = isFinal ? "delivered" : "in_transit";
+  if (input.flagShipment) shipment.isFlagged = true;
+  shipment.status = shipment.isFlagged
+    ? "flagged"
+    : isFinal
+      ? "delivered"
+      : "in_transit";
 
   if (!isFinal) {
     const nextIndex = leg.index + 1;

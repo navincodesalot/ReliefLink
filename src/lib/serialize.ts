@@ -51,6 +51,14 @@ export function toShipmentLegJSON(
     transferEventId: l.transferEventId ?? null,
     solanaSignature: sig,
     solanaExplorerUrl: sig ? explorerUrl(sig) : null,
+    proofDueAt: l.proofDueAt ? l.proofDueAt.toISOString() : null,
+    deliveryQuality: l.deliveryQuality ?? null,
+    deliveryMatchesManifest:
+      typeof l.deliveryMatchesManifest === "boolean"
+        ? l.deliveryMatchesManifest
+        : null,
+    proofSkippedReason: l.proofSkippedReason ?? null,
+    deliveryProofNotes: l.deliveryProofNotes ?? null,
   };
 }
 

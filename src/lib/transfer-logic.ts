@@ -24,6 +24,12 @@ export function evaluateLegTap(
   if (leg.status === "flagged") {
     return { isAnomaly: true, reason: "leg flagged" };
   }
+  if (leg.status === "awaiting_proof") {
+    return { isAnomaly: true, reason: "leg awaiting delivery photo" };
+  }
+  if (leg.status !== "in_transit") {
+    return { isAnomaly: true, reason: `leg not in transit (${leg.status})` };
+  }
   return { isAnomaly: false };
 }
 
@@ -44,6 +50,8 @@ export async function flagStaleShipments(): Promise<number> {
   if (res.modifiedCount > 0) {
     await ShipmentLeg.updateMany(
       {
+        /** Intentionally exclude `awaiting_proof` — its own 2‑minute window
+         * is reconciled by `finalizeExpiredProof` in the driver jobs route. */
         status: { $in: ["pending", "in_transit"] },
         updatedAt: { $lt: threshold },
       },
