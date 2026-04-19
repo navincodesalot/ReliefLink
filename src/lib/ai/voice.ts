@@ -117,7 +117,11 @@ function regionCountry(region: string) {
   return region.split("-")[0] ?? "US";
 }
 
-function selectVoice(language: string, region: string, severity: VoiceRequest["severity"]) {
+function selectVoice(
+  language: string,
+  region: string,
+  severity: VoiceRequest["severity"],
+) {
   const country = regionCountry(region);
   return (
     VOICE_MATRIX.find(
@@ -126,7 +130,9 @@ function selectVoice(language: string, region: string, severity: VoiceRequest["s
         voice.region === country &&
         voice.urgency === severity,
     ) ??
-    VOICE_MATRIX.find((voice) => voice.language === language && voice.urgency === severity) ??
+    VOICE_MATRIX.find(
+      (voice) => voice.language === language && voice.urgency === severity,
+    ) ??
     VOICE_MATRIX[0]!
   );
 }
@@ -168,7 +174,8 @@ export async function buildVoiceAlert(input: VoiceRequest) {
       ? {
           provider: "voicemonkey" as const,
           ready: true,
-          message: "Voice Monkey command is ready for an Alexa routine or Echo device.",
+          message:
+            "Voice Monkey command is ready for an Alexa routine or Echo device.",
           command: {
             method: "POST" as const,
             url: "https://api.voicemonkey.io/trigger",
@@ -186,7 +193,8 @@ export async function buildVoiceAlert(input: VoiceRequest) {
         ? {
             provider: "ifttt" as const,
             ready: true,
-            message: "IFTTT webhook command is ready to trigger an Alexa-connected applet.",
+            message:
+              "IFTTT webhook command is ready to trigger an Alexa-connected applet.",
             command: {
               method: "POST" as const,
               url: `https://maker.ifttt.com/trigger/${iftttEvent}/json/with/key/${iftttWebhookKey}`,
@@ -228,7 +236,8 @@ export async function buildVoiceAlert(input: VoiceRequest) {
           "xi-api-key": apiKey,
         },
         body: JSON.stringify({
-          model_id: process.env.ELEVENLABS_MODEL?.trim() || "eleven_multilingual_v2",
+          model_id:
+            process.env.ELEVENLABS_MODEL?.trim() || "eleven_multilingual_v2",
           text: script,
           voice_settings: {
             stability: voice.stability,

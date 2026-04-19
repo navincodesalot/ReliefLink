@@ -12,7 +12,8 @@ import type { ShipmentJSON, TransferEventJSON } from "@/lib/types";
 function parseStatus(text: string) {
   if (text.includes("flagged")) return "flagged";
   if (text.includes("delivered")) return "delivered";
-  if (text.includes("in transit") || text.includes("in_transit")) return "in_transit";
+  if (text.includes("in transit") || text.includes("in_transit"))
+    return "in_transit";
   if (text.includes("created")) return "created";
   return null;
 }
@@ -106,7 +107,11 @@ async function summarizeToolResult(
       }>,
     );
   } else if (tool === "flagAnomaly" && data && typeof data === "object") {
-    const payload = data as { shipmentId: string; reason: string; severity: string };
+    const payload = data as {
+      shipmentId: string;
+      reason: string;
+      severity: string;
+    };
     title = "Anomaly flagged";
     summary = `Shipment ${payload.shipmentId} was flagged for review with ${payload.severity} severity. Reason: ${payload.reason}.`;
   } else if (tool === "getTransferEvents" && Array.isArray(data)) {
@@ -163,7 +168,9 @@ export function parseIntent(prompt: string): DeterministicIntent {
     };
   }
 
-  const flagMatch = prompt.match(/\bflag\s+(?:anomaly\s+)?event\s+([A-Za-z0-9._-]+)\b/i);
+  const flagMatch = prompt.match(
+    /\bflag\s+(?:anomaly\s+)?event\s+([A-Za-z0-9._-]+)\b/i,
+  );
   if (flagMatch) {
     return {
       confidence: 0.98,
@@ -217,7 +224,7 @@ export async function handleAiQuery(input: {
       language: input.session.resolvedLanguage,
       title: rendered?.title ?? "Operations update",
       summary: result.ok
-        ? rendered?.summary ?? "Request completed."
+        ? (rendered?.summary ?? "Request completed.")
         : await maybeTranslate(
             result.error?.message ?? "Tool call failed.",
             input.session.resolvedLanguage,
@@ -229,15 +236,22 @@ export async function handleAiQuery(input: {
 
   if (intent.kind === "complex" && intent.reason === "risk_analysis") {
     const [shipmentsResult, eventsResult] = await Promise.all([
-      executeMcpTool("queryShipmentsByStatus", { status: "in_transit", limit: 250 }),
+      executeMcpTool("queryShipmentsByStatus", {
+        status: "in_transit",
+        limit: 250,
+      }),
       executeMcpTool("getTransferEvents", {
         from: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
         limit: 250,
       }),
     ]);
 
-    const shipments = shipmentsResult.ok ? (shipmentsResult.data as ShipmentJSON[]) : [];
-    const events = eventsResult.ok ? (eventsResult.data as TransferEventJSON[]) : [];
+    const shipments = shipmentsResult.ok
+      ? (shipmentsResult.data as ShipmentJSON[])
+      : [];
+    const events = eventsResult.ok
+      ? (eventsResult.data as TransferEventJSON[])
+      : [];
     const signals = computeRiskSignals({
       shipments,
       events,
@@ -260,7 +274,10 @@ export async function handleAiQuery(input: {
         route: "mcp_plus_rules",
         language: input.session.resolvedLanguage,
         title: "Regional shipment risk",
-        summary: await maybeTranslate(signals.summary, input.session.resolvedLanguage),
+        summary: await maybeTranslate(
+          signals.summary,
+          input.session.resolvedLanguage,
+        ),
         severity: signals.severity,
         toolResults: [
           shipmentsResult as unknown as Record<string, unknown>,
@@ -297,7 +314,10 @@ export async function handleAiQuery(input: {
         summary:
           gemini.response.language === input.session.resolvedLanguage
             ? gemini.response.text
-            : await maybeTranslate(gemini.response.text, input.session.resolvedLanguage),
+            : await maybeTranslate(
+                gemini.response.text,
+                input.session.resolvedLanguage,
+              ),
         severity: gemini.response.severity ?? "warning",
         toolResults: [
           shipmentsResult as unknown as Record<string, unknown>,
@@ -366,7 +386,10 @@ export async function handleAiQuery(input: {
     summary:
       gemini.response.language === input.session.resolvedLanguage
         ? gemini.response.text
-        : await maybeTranslate(gemini.response.text, input.session.resolvedLanguage),
+        : await maybeTranslate(
+            gemini.response.text,
+            input.session.resolvedLanguage,
+          ),
     severity: gemini.response.severity ?? "warning",
     voice,
   } satisfies AiQueryResponse;
