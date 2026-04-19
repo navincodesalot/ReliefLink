@@ -66,16 +66,20 @@ export async function announceInboundLeg(args: {
   const destPart = destination ? ` to ${destination}` : "";
   const script = `Incoming delivery${destPart}. ${driver} is bringing ${load}.`;
 
-  fireEchoAnnouncement(script);
+  await fireEchoAnnouncement(script);
 }
 
-/** Called after a successful hardware tap at the destination dock. */
+/** After a dock tap: hardware (field) or simulated (admin dashboard). */
 export async function announceDriverVerified(args: {
   leg: ShipmentLegDoc;
+  tapKind?: "hardware" | "simulated";
 }): Promise<void> {
   const driver = await resolveDriverLabel(args.leg.driverDeviceId);
-  const script = `${driver} is verified. Please hand over the shipment.`;
-  fireEchoAnnouncement(script);
+  const script =
+    args.tapKind === "simulated"
+      ? `${driver} verified via simulated tap from the dashboard.`
+      : `${driver} is verified. Please hand over the shipment.`;
+  await fireEchoAnnouncement(script);
 }
 
 /**
@@ -114,5 +118,5 @@ export async function announceProofOutcome(args: {
     script = `Delivery accepted with a note. ${load} arrived, but the goods are acceptable rather than pristine.`;
   }
 
-  fireEchoAnnouncement(script);
+  await fireEchoAnnouncement(script);
 }

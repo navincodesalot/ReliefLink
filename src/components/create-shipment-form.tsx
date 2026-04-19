@@ -178,6 +178,15 @@ export function CreateShipmentForm({ nodes, drivers, onCreated }: Props) {
       setError("origin and destination must differ");
       return;
     }
+    const driverId = driverDeviceId.trim();
+    if (!driverId) {
+      setError("select a driver for this shipment");
+      return;
+    }
+    if (drivers.length === 0) {
+      setError("register a driver in the admin console before creating shipments");
+      return;
+    }
 
     setBusy(true);
     try {
@@ -187,7 +196,7 @@ export function CreateShipmentForm({ nodes, drivers, onCreated }: Props) {
         description: description.trim() || undefined,
         cargo: cargo.trim() || undefined,
         quantity: quantity.trim() ? Number(quantity) : undefined,
-        driverDeviceId: driverDeviceId.trim() || undefined,
+        driverDeviceId: driverId,
       };
       const res = await fetch("/api/shipments", {
         method: "POST",
@@ -312,7 +321,7 @@ export function CreateShipmentForm({ nodes, drivers, onCreated }: Props) {
             />
           </div>
           <div className="space-y-1.5 md:col-span-2">
-            <Label>Driver (optional)</Label>
+            <Label>Driver</Label>
             <SearchableSelect
               options={driverOptions}
               value={driverDeviceId}
@@ -324,10 +333,11 @@ export function CreateShipmentForm({ nodes, drivers, onCreated }: Props) {
               }
               searchPlaceholder="Search drivers…"
               emptyMessage="No matching drivers."
-              clearable
+              disabled={drivers.length === 0}
             />
             <p className="text-xs text-muted-foreground">
-              Applied to every leg; override per-leg later from the shipments table.
+              Required for every leg. You can still override a leg&apos;s device from the
+              shipments table when needed.
             </p>
           </div>
 

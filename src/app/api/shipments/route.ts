@@ -28,8 +28,7 @@ const CreateShipmentSchema = z.object({
     .string()
     .min(1)
     .max(64)
-    .regex(/^[-a-zA-Z0-9._]+$/)
-    .optional(),
+    .regex(/^[-a-zA-Z0-9._]+$/),
 });
 
 export async function GET() {
@@ -149,13 +148,11 @@ export async function POST(req: Request) {
     })),
   );
 
-  if (input.driverDeviceId) {
-    const firstLeg = await ShipmentLeg.findOne({ shipmentId, index: 0 });
-    if (firstLeg) {
-      await announceInboundLeg({ shipment, leg: firstLeg }).catch((err) => {
-        console.warn("[shipments] inbound announcement failed", err);
-      });
-    }
+  const firstLeg = await ShipmentLeg.findOne({ shipmentId, index: 0 });
+  if (firstLeg) {
+    await announceInboundLeg({ shipment, leg: firstLeg }).catch((err) => {
+      console.warn("[shipments] inbound announcement failed", err);
+    });
   }
 
   return NextResponse.json(

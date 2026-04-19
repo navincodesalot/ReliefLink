@@ -135,7 +135,7 @@ export async function processTap(input: TapInput): Promise<TapResult> {
       NodeModel.findOne({ nodeId: leg.toNodeId }),
     ]);
 
-    await announceDriverVerified({ leg }).catch((err) => {
+    await announceDriverVerified({ leg, tapKind: "hardware" }).catch((err) => {
       console.warn("[tap-handler] driver-verified announcement failed", err);
     });
 
@@ -149,6 +149,16 @@ export async function processTap(input: TapInput): Promise<TapResult> {
     deviceId,
     timestamp,
   });
+
+  if (finalized.ok && input.source === "simulated_tap") {
+    await announceDriverVerified({
+      leg: finalized.leg,
+      tapKind: "simulated",
+    }).catch((err) => {
+      console.warn("[tap-handler] simulated driver-verified announcement failed", err);
+    });
+  }
+
   return finalized;
 }
 
