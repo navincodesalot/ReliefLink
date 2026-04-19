@@ -8,7 +8,7 @@ Verified **chain of custody** for disaster food aid. Handoffs between warehouse,
 - **Data:** MongoDB Atlas, database name **`relieflink`** (set by the app; your URI can omit path or include `/relieflink`).
 - **Chain:** Solana **testnet** — `@solana/web3.js` + SPL Memo (no custom on-chain program).
 - **Hardware:** Arduino Uno R3 (D2/D3) + Node USB bridge on the field machine — [hardware/arduino/README.md](./hardware/arduino/README.md).
-- **Voice (optional):** Echo Dot via Voice Monkey / IFTTT → `/api/voice` — [hardware/alexa/README.md](./hardware/alexa/README.md).
+- **Voice (optional):** Echo Dot / Alexa Custom Skill input + ElevenLabs output via `/api/voice` and `/api/voice/audio` — [hardware/alexa/README.md](./hardware/alexa/README.md).
 
 ## Run locally
 
@@ -29,7 +29,8 @@ Set the same variables as in `.env.example` in the Vercel project. On the **fiel
 | ------ | ------------------- | ----------------------------------------------------- |
 | `POST` | `/api/batch/create` | New batch; origin is first custodian.                 |
 | `POST` | `/api/transfer`     | Handoff; HMAC + optional PIN; Solana memo on success. |
-| `POST` | `/api/voice`        | Webhook for Alexa (token query or secret header).     |
+| `POST` | `/api/voice`        | Voice webhook for Alexa or Voice Monkey.              |
+| `GET`  | `/api/voice/audio`  | ElevenLabs MP3 proxy for Echo Dot playback.           |
 | `GET`  | `/api/batches`      | List batches.                                         |
 | `GET`  | `/api/batch/[id]`   | Batch + timeline.                                     |
 | `GET`  | `/api/handoff-stations` | List field devices (open for dashboard).            |
@@ -61,3 +62,34 @@ Wrong `from` vs current holder, stale `STALE_MS`, bad PIN → flagged or rejecte
 - `src/lib` — DB models, Solana memo, PIN verify, HMAC auth
 - `hardware/arduino` — Uno firmware + USB serial bridge
 - `hardware/alexa` — Echo integration
+
+## Voice demo flow
+
+`POST /api/voice` now supports structured commands on top of the existing shipment flow:
+
+- `create_shipment`
+- `shipment_status`
+- `driver_status`
+- `simulate_tap`
+- `latest_update`
+
+It also accepts a minimal Alexa Custom Skill request body and returns an Alexa-compatible response envelope. If `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` are set, the response includes an HTTPS audio URL from `/api/voice/audio` so the Echo Dot can play an ElevenLabs line after the command resolves.
+
+Example JSON request:
+
+```json
+{
+  "command": "create_shipment",
+  "origin": "warehouse-a",
+  "destination": "node-3",
+  "description": "Emergency food transfer",
+  "cargo": "MRE kits",
+  "quantity": 300,
+  "driverDeviceId": "driver-uno-01"
+}
+```
+
+Auth options:
+
+- Header `x-relieflink-signature` or `x-relieflink-secret`
+- Query string `?token=VOICE_WEBHOOK_TOKEN`
