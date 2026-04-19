@@ -156,11 +156,7 @@ export function NetworkMap({ nodes, shipments, driverLocations }: Props) {
           animate: "none",
         });
       }
-      if (
-        remainingSlice.length >= 2 &&
-        s.status !== "delivered" &&
-        s.status !== "flagged"
-      ) {
+      if (remainingSlice.length >= 2 && s.status !== "flagged") {
         segs.push({
           key: `${s.shipmentId}:pending`,
           color: "#2563eb",
