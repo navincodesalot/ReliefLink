@@ -14,6 +14,8 @@ export interface IShipmentLeg {
   toNodeId: string;
   driverDeviceId?: string;
   status: LegStatus;
+  /** ETA baseline for late detection (minutes). */
+  estimatedDurationMinutes: number;
   startedAt?: Date;
   completedAt?: Date;
   transferEventId?: string;
@@ -31,6 +33,7 @@ const ShipmentLegSchema = new Schema<IShipmentLeg>(
     fromNodeId: { type: String, required: true },
     toNodeId: { type: String, required: true },
     driverDeviceId: { type: String, index: true, sparse: true },
+    estimatedDurationMinutes: { type: Number, default: 45, min: 1 },
     status: { type: String, enum: LEG_STATUSES, default: "pending", required: true },
     startedAt: { type: Date },
     completedAt: { type: Date },

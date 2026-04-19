@@ -15,8 +15,10 @@ import {
 } from "@/components/ui/card";
 import { CreateNodeForm } from "@/components/create-node-form";
 import { CreateShipmentForm } from "@/components/create-shipment-form";
-import { PendingDevicesPanel } from "@/components/pending-devices-panel";
+import { PendingDeviceOnboardingModal } from "@/components/pending-device-onboarding-modal";
+import type { DriverLocationPin } from "@/components/network-map";
 import { ShipmentsTable } from "@/components/shipments-table";
+import type { ReliefLinkRole } from "@/lib/roles";
 import type { NodeJSON, ShipmentJSON } from "@/lib/types";
 
 const NetworkMap = dynamic(
@@ -34,32 +36,66 @@ function MapSkeleton() {
 
 const POLL_MS = 2500;
 
-export function DashboardHome() {
+export type DashboardMode = "admin" | "warehouse" | "readonly";
+
+type DashboardHomeProps = {
+  mode: DashboardMode;
+  /** @deprecated kept for backwards compat; no longer used after auth removal. */
+  sessionRole?: ReliefLinkRole;
+};
+
+export function DashboardHome({ mode }: DashboardHomeProps) {
+  const readOnly = mode === "readonly";
   const [nodes, setNodes] = useState<NodeJSON[]>([]);
   const [shipments, setShipments] = useState<ShipmentJSON[]>([]);
+  const [driverPins, setDriverPins] = useState<DriverLocationPin[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadAll = useCallback(async () => {
+    const showDrivers = mode !== "readonly";
     try {
-      const [nr, sr] = await Promise.all([
-        fetch("/api/nodes", { cache: "no-store" }),
-        fetch("/api/shipments", { cache: "no-store" }),
-      ]);
+      const nr = await fetch("/api/nodes", { cache: "no-store" });
+      const sr = await fetch("/api/shipments", { cache: "no-store" });
       if (!nr.ok) throw new Error(`nodes HTTP ${nr.status}`);
       if (!sr.ok) throw new Error(`shipments HTTP ${sr.status}`);
       const nd = (await nr.json()) as { nodes: NodeJSON[] };
       const sd = (await sr.json()) as { shipments: ShipmentJSON[] };
       setNodes(nd.nodes);
       setShipments(sd.shipments);
+
+      if (showDrivers) {
+        const lr = await fetch("/api/driver-locations", { cache: "no-store" });
+        if (lr.ok) {
+          const loc = (await lr.json()) as {
+            locations: {
+              deviceId: string;
+              lat: number;
+              lng: number;
+              updatedAt: string | null;
+            }[];
+          };
+          setDriverPins(
+            loc.locations.map((l) => ({
+              deviceId: l.deviceId,
+              lat: l.lat,
+              lng: l.lng,
+              updatedAt: l.updatedAt,
+            })),
+          );
+        }
+      } else {
+        setDriverPins([]);
+      }
+
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "failed");
     } finally {
       setLoaded(true);
     }
-  }, []);
+  }, [mode]);
 
   useEffect(() => {
     void loadAll();
@@ -83,28 +119,50 @@ export function DashboardHome() {
     [shipments],
   );
 
+  const eyebrow =
+    mode === "readonly"
+      ? "Transparency"
+      : mode === "warehouse"
+        ? "Warehouse operations"
+        : "Operations";
+  const title =
+    mode === "readonly" ? (
+      <>
+        ReliefLink <span className="text-muted-foreground">· Public view</span>
+      </>
+    ) : mode === "warehouse" ? (
+      <>
+        ReliefLink{" "}
+        <span className="text-muted-foreground">· Warehouse & food bank</span>
+      </>
+    ) : (
+      <>
+        ReliefLink <span className="text-muted-foreground">· Node Network</span>
+      </>
+    );
+  const subtitle =
+    mode === "readonly"
+      ? "Read-only map and shipment progress. Custody updates still happen through verified field taps and UN operations."
+      : "UN-coordinated food aid routed through warehouses and local beacon nodes. Every hop is cryptographically anchored on Solana testnet at the moment of physical handoff.";
+
   return (
     <div className="mx-auto w-full max-w-7xl space-y-6 p-4 md:p-8">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-widest text-muted-foreground">
-            Operations
+            {eyebrow}
           </p>
-          <h1 className="text-3xl font-semibold tracking-tight">
-            ReliefLink <span className="text-muted-foreground">· Node Network</span>
-          </h1>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            UN-coordinated food aid routed through warehouses and local beacon
-            nodes. Every hop is cryptographically anchored on Solana testnet at
-            the moment of physical handoff.
-          </p>
+          <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{subtitle}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Link href="/driver">
-            <Button variant="outline" size="sm">
-              <Truck className="h-4 w-4" /> Driver console
-            </Button>
-          </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          {!readOnly ? (
+            <Link href="/driver">
+              <Button variant="outline" size="sm">
+                <Truck className="h-4 w-4" /> Driver console
+              </Button>
+            </Link>
+          ) : null}
         </div>
       </header>
 
@@ -136,34 +194,47 @@ export function DashboardHome() {
         </Card>
       ) : null}
 
-      {pending.length > 0 ? (
-        <PendingDevicesPanel
+      {!readOnly && mode === "admin" ? (
+        <PendingDeviceOnboardingModal
           pending={pending}
           onPromoted={() => void loadAll()}
           onDismissed={() => void loadAll()}
         />
       ) : null}
 
-      <section className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      <section
+        className={
+          readOnly
+            ? "grid gap-6"
+            : "grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]"
+        }
+      >
         <Card className="overflow-hidden">
           <CardHeader>
             <CardTitle className="text-base">Live network map</CardTitle>
             <CardDescription>
-              Warehouses in blue · beacon nodes in green · active routes in blue
-              dashed · completed legs in solid green.
+              {readOnly
+                ? "Follow routes in real time. Warehouses in blue, beacon nodes in green, active routes dashed, completed legs solid."
+                : "Warehouses in blue · beacon nodes in green · active routes dashed · orange pins show live driver GPS."}
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             <div className="h-[420px] w-full">
-              <NetworkMap nodes={nodes} shipments={shipments} />
+              <NetworkMap
+                nodes={nodes}
+                shipments={shipments}
+                driverLocations={readOnly ? undefined : driverPins}
+              />
             </div>
           </CardContent>
         </Card>
 
-        <div className="space-y-6">
-          <CreateShipmentForm nodes={nodes} onCreated={() => void loadAll()} />
-          <CreateNodeForm onCreated={() => void loadAll()} />
-        </div>
+        {!readOnly ? (
+          <div className="space-y-6">
+            <CreateShipmentForm nodes={nodes} onCreated={() => void loadAll()} />
+            <CreateNodeForm onCreated={() => void loadAll()} />
+          </div>
+        ) : null}
       </section>
 
       <section className="space-y-3">
@@ -181,6 +252,7 @@ export function DashboardHome() {
             nodes={nodes}
             onTap={() => void loadAll()}
             onChanged={() => void loadAll()}
+            readOnly={readOnly}
           />
         )}
       </section>

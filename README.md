@@ -19,6 +19,26 @@ Verified **chain of custody** for disaster food aid. Handoffs between warehouse,
 
 **Note:** If you used an older build, data may have lived in a MongoDB database named `foodtrust`. This app now uses **`relieflink`** — migrate data or recreate batches.
 
+### Web UI demo logins (MongoDB only)
+
+Sign-in is **not** configured via `.env` passwords. Users live in MongoDB (`User` collection). After `MONGODB_URI` is set, run:
+
+```bash
+pnpm seed:users
+```
+
+That upserts three demo accounts. **Same password for all** (unless you set `RELIEFLINK_SEED_PASSWORD` in `.env` before seeding):
+
+| Role | Email | Password (default) | Notes |
+| --- | --- | --- | --- |
+| UN administrator | `admin@relieflink.demo` | `ReliefLink#2026` | `/login/admin` → `/admin` |
+| Warehouse / food bank | `warehouse@relieflink.demo` | `ReliefLink#2026` | Linked to warehouse node `un-brindisi` (seed nodes first: `pnpm seed`) |
+| Driver | `driver@relieflink.demo` | `ReliefLink#2026` | Device id `driver-demo-01` on the account |
+
+**Public** Solana ledger: open **`/track`** — no login.
+
+Re-run `pnpm seed:users` any time to reset these passwords to the current `RELIEFLINK_SEED_PASSWORD` or the default above.
+
 ## Deploy (Vercel)
 
 Set the same variables as in `.env.example` in the Vercel project. On the **field laptop**, the USB bridge uses the same `TRANSFER_SECRET`, `TRANSFER_PIN` (if used), `RELIEFLINK_API_URL`, and a stable **`DEVICE_ID`**. Map each device to **batch + from + to** in the app under **Handoff stations** (`/stations`) — not in the bridge `.env`.

@@ -28,6 +28,7 @@ export type ShipmentLegJSON = {
   fromNodeId: string;
   toNodeId: string;
   driverDeviceId: string | null;
+  estimatedDurationMinutes: number;
   status: LegStatus;
   startedAt: string | null;
   completedAt: string | null;

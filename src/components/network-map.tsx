@@ -8,9 +8,18 @@ import "leaflet/dist/leaflet.css";
 
 import type { NodeJSON, ShipmentJSON } from "@/lib/types";
 
+export type DriverLocationPin = {
+  deviceId: string;
+  lat: number;
+  lng: number;
+  updatedAt?: string | null;
+};
+
 type Props = {
   nodes: NodeJSON[];
   shipments: ShipmentJSON[];
+  /** Live GPS pins (drivers). */
+  driverLocations?: DriverLocationPin[];
 };
 
 const KIND_COLORS: Record<NodeJSON["kind"], string> = {
@@ -20,17 +29,34 @@ const KIND_COLORS: Record<NodeJSON["kind"], string> = {
   other: "#64748b",
 };
 
-function divIcon(color: string, emoji: string, dim = false) {
+type NodeActivity = "idle" | "active" | "next";
+
+function divIcon({
+  color,
+  emoji,
+  dim = false,
+  activity = "idle",
+}: {
+  color: string;
+  emoji: string;
+  dim?: boolean;
+  activity?: NodeActivity;
+}) {
+  const pulseClass =
+    activity === "next"
+      ? "relieflink-node relieflink-node--pulse relieflink-node--next"
+      : activity === "active"
+        ? "relieflink-node relieflink-node--pulse"
+        : "relieflink-node";
   return L.divIcon({
     className: "relieflink-marker",
     html: `
-      <div style="
-        display:flex;align-items:center;justify-content:center;
-        width:28px;height:28px;border-radius:50%;
-        background:${color};color:white;font-size:14px;line-height:1;
-        box-shadow:0 0 0 3px rgba(255,255,255,0.9), 0 2px 6px rgba(0,0,0,.25);
-        opacity:${dim ? 0.55 : 1};
-      ">${emoji}</div>
+      <div
+        class="${pulseClass}"
+        style="background:${color};color:${color};opacity:${dim ? 0.55 : 1};"
+      >
+        <span style="position:relative;z-index:1;color:white;">${emoji}</span>
+      </div>
     `,
     iconSize: [28, 28],
     iconAnchor: [14, 14],
@@ -38,7 +64,9 @@ function divIcon(color: string, emoji: string, dim = false) {
   });
 }
 
-function iconFor(node: NodeJSON) {
+const driverIcon = divIcon({ color: "#ea580c", emoji: "D", activity: "active" });
+
+function iconFor(node: NodeJSON, activity: NodeActivity) {
   const color = KIND_COLORS[node.kind] ?? KIND_COLORS.other;
   const glyph =
     node.kind === "warehouse"
@@ -50,10 +78,15 @@ function iconFor(node: NodeJSON) {
         : node.kind === "home"
           ? "H"
           : "·";
-  return divIcon(color, glyph, !node.active || node.pendingOnboarding);
+  return divIcon({
+    color,
+    emoji: glyph,
+    dim: !node.active || node.pendingOnboarding,
+    activity,
+  });
 }
 
-export function NetworkMap({ nodes, shipments }: Props) {
+export function NetworkMap({ nodes, shipments, driverLocations }: Props) {
   const center = useMemo(() => {
     if (nodes.length === 0) return [20, 0] as [number, number];
     const lat = nodes.reduce((s, n) => s + n.lat, 0) / nodes.length;
@@ -67,6 +100,32 @@ export function NetworkMap({ nodes, shipments }: Props) {
     return m;
   }, [nodes]);
 
+  /**
+   * Classify each node by shipment activity:
+   *   - "next" = current destination of an in-flight shipment (strong pulse)
+   *   - "active" = any other stop on an in-flight shipment
+   *   - "idle" = untouched
+   */
+  const activityByNode = useMemo(() => {
+    const out = new Map<string, NodeActivity>();
+    const promote = (id: string, level: NodeActivity) => {
+      const rank: Record<NodeActivity, number> = { idle: 0, active: 1, next: 2 };
+      const cur = out.get(id) ?? "idle";
+      if (rank[level] > rank[cur]) out.set(id, level);
+    };
+
+    for (const s of shipments) {
+      if (s.status === "delivered" || s.status === "flagged") continue;
+      const route = s.nodeRoute;
+      if (route.length < 2) continue;
+      for (const id of route) promote(id, "active");
+      const nextIdx = Math.min(route.length - 1, s.completedLegs + 1);
+      const nextId = route[nextIdx];
+      if (nextId) promote(nextId, "next");
+    }
+    return out;
+  }, [shipments]);
+
   const activeRoutes = useMemo(() => {
     type Segment = {
       key: string;
@@ -74,6 +133,7 @@ export function NetworkMap({ nodes, shipments }: Props) {
       dashArray?: string;
       positions: [number, number][];
       label: string;
+      animate: "none" | "active" | "flagged";
     };
     const segs: Segment[] = [];
     for (const s of shipments) {
@@ -92,6 +152,7 @@ export function NetworkMap({ nodes, shipments }: Props) {
           color: "#16a34a",
           positions: completedSlice,
           label: `${s.shipmentId} · completed`,
+          animate: "none",
         });
       }
       if (
@@ -105,6 +166,7 @@ export function NetworkMap({ nodes, shipments }: Props) {
           dashArray: "6 6",
           positions: remainingSlice,
           label: `${s.shipmentId} · remaining`,
+          animate: "active",
         });
       }
       if (s.status === "flagged") {
@@ -114,6 +176,7 @@ export function NetworkMap({ nodes, shipments }: Props) {
           dashArray: "4 8",
           positions: pts,
           label: `${s.shipmentId} · flagged`,
+          animate: "flagged",
         });
       }
     }
@@ -141,26 +204,59 @@ export function NetworkMap({ nodes, shipments }: Props) {
             weight: 3,
             opacity: 0.85,
             dashArray: seg.dashArray,
+            className:
+              seg.animate === "active"
+                ? "relieflink-route-active"
+                : seg.animate === "flagged"
+                  ? "relieflink-route-flagged"
+                  : undefined,
           }}
         />
       ))}
-      {nodes.map((n) => (
-        <Marker key={n.nodeId} position={[n.lat, n.lng]} icon={iconFor(n)}>
+      {nodes.map((n) => {
+        const activity = activityByNode.get(n.nodeId) ?? "idle";
+        return (
+          <Marker key={n.nodeId} position={[n.lat, n.lng]} icon={iconFor(n, activity)}>
+            <Popup>
+              <div className="space-y-1 text-xs">
+                <div className="text-sm font-semibold">{n.name}</div>
+                <div className="text-muted-foreground">
+                  {n.kind}
+                  {n.hasHardware ? " · hardware-enabled" : " · seeded (no device)"}
+                </div>
+                <div className="font-mono">{n.nodeId}</div>
+                {n.address ? <div>{n.address}</div> : null}
+                <div className="text-muted-foreground">
+                  {n.lat.toFixed(3)}, {n.lng.toFixed(3)}
+                </div>
+                {n.deviceId ? <div>device: {n.deviceId}</div> : null}
+                {n.pendingOnboarding ? (
+                  <div className="text-amber-600">pending onboarding</div>
+                ) : null}
+                {activity === "next" ? (
+                  <div className="text-primary">next stop on an active shipment</div>
+                ) : activity === "active" ? (
+                  <div className="text-muted-foreground">on an active shipment</div>
+                ) : null}
+              </div>
+            </Popup>
+          </Marker>
+        );
+      })}
+      {(driverLocations ?? []).map((d) => (
+        <Marker
+          key={`drv-${d.deviceId}`}
+          position={[d.lat, d.lng]}
+          icon={driverIcon}
+        >
           <Popup>
             <div className="space-y-1 text-xs">
-              <div className="text-sm font-semibold">{n.name}</div>
-              <div className="text-muted-foreground">
-                {n.kind}
-                {n.hasHardware ? " · hardware-enabled" : " · seeded (no device)"}
-              </div>
-              <div className="font-mono">{n.nodeId}</div>
-              {n.address ? <div>{n.address}</div> : null}
-              <div className="text-muted-foreground">
-                {n.lat.toFixed(3)}, {n.lng.toFixed(3)}
-              </div>
-              {n.deviceId ? <div>device: {n.deviceId}</div> : null}
-              {n.pendingOnboarding ? (
-                <div className="text-amber-600">pending onboarding</div>
+              <div className="text-sm font-semibold">Driver device</div>
+              <div className="font-mono">{d.deviceId}</div>
+              {d.updatedAt ? (
+                <div className="text-muted-foreground">
+                  updated {new Date(d.updatedAt).toLocaleString()}
+                </div>
               ) : null}
             </div>
           </Popup>

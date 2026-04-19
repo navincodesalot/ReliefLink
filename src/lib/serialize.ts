@@ -41,6 +41,10 @@ export function toShipmentLegJSON(
     fromNodeId: l.fromNodeId,
     toNodeId: l.toNodeId,
     driverDeviceId: l.driverDeviceId ?? null,
+    estimatedDurationMinutes:
+      typeof l.estimatedDurationMinutes === "number"
+        ? l.estimatedDurationMinutes
+        : 45,
     status: l.status,
     startedAt: l.startedAt ? l.startedAt.toISOString() : null,
     completedAt: l.completedAt ? l.completedAt.toISOString() : null,

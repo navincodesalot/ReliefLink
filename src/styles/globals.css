@@ -81,7 +81,126 @@
   * {
     @apply border-border;
   }
+  html {
+    color-scheme: light dark;
+  }
+  .dark {
+    color-scheme: dark;
+  }
   body {
     @apply bg-background text-foreground;
   }
+  /* Native selects / options follow theme (fixes white dropdowns in dark mode). */
+  select {
+    background-color: var(--background);
+    color: var(--foreground);
+    color-scheme: light dark;
+  }
+  .dark select {
+    background-color: color-mix(in oklch, var(--input) 100%, transparent);
+    color: var(--foreground);
+    color-scheme: dark;
+  }
+  select:focus-visible {
+    outline: none;
+  }
+  option {
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+  .dark option {
+    background-color: var(--popover);
+    color: var(--popover-foreground);
+  }
+}
+
+@layer utilities {
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* --- Network map animations ------------------------------------------------ */
+
+@keyframes relieflink-pulse-ring {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.75;
+  }
+  80% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+@keyframes relieflink-node-bob {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+@keyframes relieflink-dash-march {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+.relieflink-marker .relieflink-node {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  color: white;
+  font-size: 14px;
+  line-height: 1;
+  box-shadow:
+    0 0 0 3px rgba(255, 255, 255, 0.9),
+    0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.relieflink-marker .relieflink-node--pulse {
+  animation: relieflink-node-bob 1.8s ease-in-out infinite;
+}
+
+.relieflink-marker .relieflink-node--pulse::before,
+.relieflink-marker .relieflink-node--pulse::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: currentColor;
+  pointer-events: none;
+  animation: relieflink-pulse-ring 1.8s ease-out infinite;
+}
+
+.relieflink-marker .relieflink-node--pulse::after {
+  animation-delay: 0.9s;
+}
+
+.relieflink-marker .relieflink-node--next::before,
+.relieflink-marker .relieflink-node--next::after {
+  animation-duration: 1.25s;
+}
+
+.leaflet-pane .relieflink-route-active {
+  animation: relieflink-dash-march 1.2s linear infinite;
+}
+
+.leaflet-pane .relieflink-route-flagged {
+  animation: relieflink-dash-march 0.8s linear infinite reverse;
 }
