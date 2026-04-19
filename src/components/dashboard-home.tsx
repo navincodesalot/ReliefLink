@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Activity, Network, Truck } from "lucide-react";
 
+import { AiOperationsPanel } from "@/components/ai-operations-panel";
+import { LanguageToggle } from "@/components/language-toggle";
+import { useLanguage } from "@/components/language-provider";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -47,6 +50,7 @@ type DashboardHomeProps = {
 };
 
 export function DashboardHome({ mode, driversRefreshKey }: DashboardHomeProps) {
+  const { t } = useLanguage();
   const readOnly = mode === "readonly";
   const [nodes, setNodes] = useState<NodeJSON[]>([]);
   const [shipments, setShipments] = useState<ShipmentJSON[]>([]);
@@ -138,21 +142,17 @@ export function DashboardHome({ mode, driversRefreshKey }: DashboardHomeProps) {
     [shipments],
   );
 
-  const eyebrow = mode === "readonly" ? "Transparency" : "Operations";
-  const title =
-    mode === "readonly" ? (
-      <>
-        ReliefLink <span className="text-muted-foreground">· Public view</span>
-      </>
-    ) : (
-      <>
-        ReliefLink <span className="text-muted-foreground">· Node Network</span>
-      </>
-    );
-  const subtitle =
-    mode === "readonly"
-      ? "Read-only map and shipment progress. Custody updates still happen through verified field taps and UN operations."
-      : "UN-coordinated food aid routed through warehouses and local beacon nodes. Every hop is cryptographically anchored on Solana testnet at the moment of physical handoff.";
+  const eyebrow = readOnly ? t("transparency") : t("operations");
+  const title = readOnly ? (
+    <>
+      ReliefLink <span className="text-muted-foreground">· {t("publicView")}</span>
+    </>
+  ) : (
+    <>
+      ReliefLink <span className="text-muted-foreground">· {t("nodeNetwork")}</span>
+    </>
+  );
+  const subtitle = readOnly ? t("publicTagline") : t("tagline");
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-6 p-4 md:p-8">
@@ -165,10 +165,11 @@ export function DashboardHome({ mode, driversRefreshKey }: DashboardHomeProps) {
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{subtitle}</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <LanguageToggle />
           {!readOnly ? (
             <Link href="/driver">
               <Button variant="outline" size="sm">
-                <Truck className="h-4 w-4" /> Driver console
+                <Truck className="h-4 w-4" /> {t("driverConsole")}
               </Button>
             </Link>
           ) : null}
@@ -176,24 +177,26 @@ export function DashboardHome({ mode, driversRefreshKey }: DashboardHomeProps) {
       </header>
 
       <section className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
-        <Stat icon={<Network className="h-4 w-4" />} label="Nodes" value={nodes.length} />
+        <Stat icon={<Network className="h-4 w-4" />} label={t("nodes")} value={nodes.length} />
         <Stat
           icon={<Activity className="h-4 w-4" />}
-          label="In transit"
+          label={t("inTransit")}
           value={activeCount}
         />
         <Stat
           icon={<Truck className="h-4 w-4" />}
-          label="Delivered"
+          label={t("delivered")}
           value={deliveredCount}
         />
         <Stat
           icon={<Activity className="h-4 w-4" />}
-          label="Flagged"
+          label={t("flagged")}
           value={flaggedCount}
           tone={flaggedCount > 0 ? "destructive" : "muted"}
         />
       </section>
+
+      <AiOperationsPanel />
 
       {error ? (
         <Card className="border-destructive/50">
@@ -220,11 +223,9 @@ export function DashboardHome({ mode, driversRefreshKey }: DashboardHomeProps) {
       >
         <Card className="overflow-hidden">
           <CardHeader>
-            <CardTitle className="text-base">Live network map</CardTitle>
+            <CardTitle className="text-base">{t("liveNetworkMap")}</CardTitle>
             <CardDescription>
-              {readOnly
-                ? "Follow routes in real time. Hub nodes in blue, beacon nodes in green, active routes dashed, completed legs solid."
-                : "Warehouses in blue · stores in green · homes in amber · dashed active routes · orange pins show live driver GPS."}
+              {readOnly ? t("mapLegendReadOnly") : t("mapLegend")}
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
@@ -252,9 +253,9 @@ export function DashboardHome({ mode, driversRefreshKey }: DashboardHomeProps) {
 
       <section className="space-y-3">
         <div className="flex items-baseline justify-between">
-          <h2 className="text-xl font-semibold tracking-tight">Shipments</h2>
+          <h2 className="text-xl font-semibold tracking-tight">{t("shipments")}</h2>
           <span className="text-xs text-muted-foreground">
-            polling every {POLL_MS / 1000}s
+            {t("pollingEvery")} {POLL_MS / 1000}s
           </span>
         </div>
         {!loaded ? (
