@@ -1,12 +1,18 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight, ExternalLink, Flag, Radio } from "lucide-react";
+import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
+import {
+  SearchableSelect,
+  type SearchOption,
+} from "@/components/searchable-select";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { runStagedLedgerUi } from "@/lib/staged-ledger-ui";
 import type {
+  DriverListItem,
   NodeJSON,
   ShipmentJSON,
   ShipmentLegJSON,
@@ -17,8 +23,10 @@ import { cn } from "@/lib/utils";
 type Props = {
   shipments: ShipmentJSON[];
   nodes: NodeJSON[];
+  drivers: DriverListItem[];
   onTap?: (shipmentId: string, legIndex: number) => void;
   onChanged?: () => void;
+  readOnly?: boolean;
 };
 
 type ShipmentDetail = {
@@ -34,7 +42,14 @@ function formatTime(iso: string) {
   }
 }
 
-export function ShipmentsTable({ shipments, nodes, onTap, onChanged }: Props) {
+export function ShipmentsTable({
+  shipments,
+  nodes,
+  drivers,
+  onTap,
+  onChanged,
+  readOnly = false,
+}: Props) {
   const byId = new Map(nodes.map((n) => [n.nodeId, n]));
   const nameOf = (id: string) => byId.get(id)?.name ?? id;
 
@@ -42,6 +57,13 @@ export function ShipmentsTable({ shipments, nodes, onTap, onChanged }: Props) {
   const [details, setDetails] = useState<Record<string, ShipmentDetail>>({});
   const [tapping, setTapping] = useState<string | null>(null);
   const [assignBusy, setAssignBusy] = useState<string | null>(null);
+
+  const driverOptions: SearchOption[] = drivers.map((d) => ({
+    value: d.driverDeviceId,
+    label: d.name,
+    description: d.driverDeviceId,
+    keywords: [d.email, d.driverDeviceId],
+  }));
 
   const loadDetail = useCallback(async (shipmentId: string) => {
     const res = await fetch(`/api/shipments/${encodeURIComponent(shipmentId)}`, {
@@ -62,17 +84,33 @@ export function ShipmentsTable({ shipments, nodes, onTap, onChanged }: Props) {
   async function handleSimulateTap(shipmentId: string, legIndex: number) {
     setTapping(`${shipmentId}:${legIndex}`);
     try {
-      const res = await fetch(
-        `/api/shipments/${encodeURIComponent(shipmentId)}/simulate-tap`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ legIndex }),
+      await runStagedLedgerUi({
+        steps: [
+          { label: "Connecting to beacon…" },
+          { label: "Verifying driver credentials…" },
+          { label: "Signing handoff payload…" },
+          { label: "Anchoring on Solana…" },
+        ],
+        successLabel: `Leg ${legIndex} anchored on Solana.`,
+        errorLabel: "Simulated tap failed.",
+        run: async () => {
+          const res = await fetch(
+            `/api/shipments/${encodeURIComponent(shipmentId)}/simulate-tap`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ legIndex }),
+            },
+          );
+          const data = (await res.json()) as { error?: string };
+          if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+          return data;
         },
-      );
-      await res.json();
+      });
       onTap?.(shipmentId, legIndex);
       await loadDetail(shipmentId);
+    } catch {
+      // toast already surfaced
     } finally {
       setTapping(null);
     }
@@ -85,7 +123,7 @@ export function ShipmentsTable({ shipments, nodes, onTap, onChanged }: Props) {
   ) {
     setAssignBusy(`${shipmentId}:${legIndex}`);
     try {
-      await fetch(
+      const res = await fetch(
         `/api/shipments/${encodeURIComponent(shipmentId)}/legs/${legIndex}`,
         {
           method: "PATCH",
@@ -93,6 +131,12 @@ export function ShipmentsTable({ shipments, nodes, onTap, onChanged }: Props) {
           body: JSON.stringify({ driverDeviceId: deviceId || null }),
         },
       );
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        toast.error(data.error ?? `HTTP ${res.status}`);
+      } else {
+        toast.success(deviceId ? "Driver assigned." : "Driver cleared.");
+      }
       await loadDetail(shipmentId);
       onChanged?.();
     } finally {
@@ -103,7 +147,9 @@ export function ShipmentsTable({ shipments, nodes, onTap, onChanged }: Props) {
   if (shipments.length === 0) {
     return (
       <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-        No shipments yet. Create one on the right to launch the first hop.
+        {readOnly
+          ? "No shipments to display yet."
+          : "No shipments yet. Create one on the right to launch the first hop."}
       </div>
     );
   }
@@ -198,7 +244,12 @@ export function ShipmentsTable({ shipments, nodes, onTap, onChanged }: Props) {
                               return (
                                 <div
                                   key={leg.id}
-                                  className="grid grid-cols-1 items-center gap-2 rounded-md border bg-background p-3 md:grid-cols-[auto_1fr_auto_auto]"
+                                  className={
+                                    "grid grid-cols-1 items-center gap-2 rounded-md border bg-background p-3 " +
+                                    (readOnly
+                                      ? "md:grid-cols-[auto_1fr]"
+                                      : "md:grid-cols-[auto_1fr_auto_auto]")
+                                  }
                                 >
                                   <div className="flex items-center gap-2">
                                     <LegStatusDot status={leg.status} />
@@ -225,41 +276,70 @@ export function ShipmentsTable({ shipments, nodes, onTap, onChanged }: Props) {
                                         tx <ExternalLink className="h-3 w-3" />
                                       </a>
                                     ) : null}
+                                    <LegQualityBadges leg={leg} />
                                   </div>
-                                  <DeviceAssignInput
-                                    initial={leg.driverDeviceId ?? ""}
-                                    disabled={
-                                      assignBusy === busyKey ||
-                                      leg.status === "done"
-                                    }
-                                    onSave={(v) =>
-                                      handleAssignDevice(s.shipmentId, leg.index, v)
-                                    }
-                                  />
-                                  <div onClick={(e) => e.stopPropagation()}>
-                                    <Button
-                                      size="sm"
-                                      variant={
-                                        leg.status === "in_transit"
-                                          ? "default"
-                                          : "outline"
-                                      }
-                                      disabled={
-                                        leg.status !== "in_transit" ||
-                                        tapping === busyKey
-                                      }
-                                      onClick={() =>
-                                        handleSimulateTap(s.shipmentId, leg.index)
-                                      }
-                                    >
-                                      <Radio className="h-3.5 w-3.5" />
-                                      {tapping === busyKey
-                                        ? "Signing..."
-                                        : leg.status === "done"
-                                          ? "Tapped"
-                                          : "Simulate tap"}
-                                    </Button>
-                                  </div>
+                                  {readOnly ? (
+                                    <div className="text-xs text-muted-foreground">
+                                      {leg.driverDeviceId
+                                        ? `Device ${leg.driverDeviceId}`
+                                        : "No driver device assigned"}
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <div
+                                        className="w-56"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <SearchableSelect
+                                          options={driverOptions}
+                                          value={leg.driverDeviceId ?? ""}
+                                          onChange={(v) =>
+                                            handleAssignDevice(
+                                              s.shipmentId,
+                                              leg.index,
+                                              v,
+                                            )
+                                          }
+                                          placeholder={
+                                            drivers.length === 0
+                                              ? "No drivers seeded…"
+                                              : "Assign driver…"
+                                          }
+                                          searchPlaceholder="Search drivers…"
+                                          emptyMessage="No matching drivers."
+                                          disabled={
+                                            assignBusy === busyKey ||
+                                            leg.status === "done"
+                                          }
+                                          clearable
+                                        />
+                                      </div>
+                                      <div onClick={(e) => e.stopPropagation()}>
+                                        <Button
+                                          size="sm"
+                                          variant={
+                                            leg.status === "in_transit"
+                                              ? "default"
+                                              : "outline"
+                                          }
+                                          disabled={
+                                            leg.status !== "in_transit" ||
+                                            tapping === busyKey
+                                          }
+                                          onClick={() =>
+                                            handleSimulateTap(s.shipmentId, leg.index)
+                                          }
+                                        >
+                                          <Radio className="h-3.5 w-3.5" />
+                                          {tapping === busyKey
+                                            ? "Signing..."
+                                            : leg.status === "done"
+                                              ? "Tapped"
+                                              : "Simulate tap"}
+                                        </Button>
+                                      </div>
+                                    </>
+                                  )}
                                 </div>
                               );
                             })}
@@ -356,49 +436,63 @@ function StatusPill({ shipment }: { shipment: ShipmentJSON }) {
   return <Badge variant="secondary">{shipment.status}</Badge>;
 }
 
+function LegQualityBadges({ leg }: { leg: ShipmentLegJSON }) {
+  const badges: ReactNode[] = [];
+  if (leg.status === "awaiting_proof") {
+    badges.push(
+      <Badge key="awaiting" variant="secondary">
+        awaiting photo
+      </Badge>,
+    );
+  }
+  if (leg.deliveryQuality === "poor") {
+    badges.push(
+      <Badge key="poor" variant="destructive">
+        poor condition
+      </Badge>,
+    );
+  } else if (leg.deliveryQuality === "acceptable") {
+    badges.push(
+      <Badge key="acceptable" variant="warning">
+        acceptable
+      </Badge>,
+    );
+  } else if (leg.deliveryQuality === "good") {
+    badges.push(
+      <Badge key="good" variant="success">
+        good
+      </Badge>,
+    );
+  }
+  if (leg.deliveryMatchesManifest === false) {
+    badges.push(
+      <Badge key="mismatch" variant="destructive">
+        manifest mismatch
+      </Badge>,
+    );
+  }
+  if (leg.proofSkippedReason === "timeout") {
+    badges.push(
+      <Badge key="timeout" variant="warning">
+        photo missed
+      </Badge>,
+    );
+  }
+  if (badges.length === 0) return null;
+  return <span className="ml-2 inline-flex flex-wrap gap-1">{badges}</span>;
+}
+
 function LegStatusDot({ status }: { status: ShipmentLegJSON["status"] }) {
   const color =
     status === "done"
       ? "bg-emerald-500"
       : status === "in_transit"
         ? "bg-amber-500"
-        : status === "flagged"
-          ? "bg-destructive"
-          : "bg-muted-foreground";
+        : status === "awaiting_proof"
+          ? "bg-blue-500"
+          : status === "flagged"
+            ? "bg-destructive"
+            : "bg-muted-foreground";
   return <span className={cn("h-2 w-2 rounded-full", color)} />;
 }
 
-function DeviceAssignInput({
-  initial,
-  onSave,
-  disabled,
-}: {
-  initial: string;
-  onSave: (deviceId: string) => void;
-  disabled: boolean;
-}) {
-  const [val, setVal] = useState(initial);
-  const dirty = val !== initial;
-  return (
-    <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-      <Input
-        value={val}
-        onChange={(e) => setVal(e.target.value)}
-        placeholder="driver device id"
-        className="h-8 w-40 text-xs"
-        pattern="[-a-zA-Z0-9._]+"
-        disabled={disabled}
-      />
-      {dirty ? (
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => onSave(val.trim())}
-          disabled={disabled}
-        >
-          save
-        </Button>
-      ) : null}
-    </div>
-  );
-}

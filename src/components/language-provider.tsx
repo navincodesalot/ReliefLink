@@ -25,7 +25,13 @@ const EN_DICT: TranslationDict = {
   flagged: "Flagged",
   liveNetworkMap: "Live network map",
   mapLegend:
-    "Warehouses in blue · beacon nodes in green · active routes in blue dashed · completed legs in solid green.",
+    "Warehouses in blue · stores in green · homes in amber · dashed active routes · orange pins show live driver GPS.",
+  mapLegendReadOnly:
+    "Follow routes in real time. Hub nodes in blue, beacon nodes in green, active routes dashed, completed legs solid.",
+  transparency: "Transparency",
+  publicView: "Public view",
+  publicTagline:
+    "Read-only map and shipment progress. Custody updates still happen through verified field taps and UN operations.",
   shipments: "Shipments",
   pollingEvery: "polling every",
   coordinatorQuery: "Coordinator query",

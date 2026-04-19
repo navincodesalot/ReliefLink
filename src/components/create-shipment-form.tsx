@@ -1,8 +1,13 @@
 "use client";
 
-import { type FormEvent, useMemo, useState } from "react";
-import { PackagePlus, X } from "lucide-react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { PackagePlus } from "lucide-react";
+import { toast } from "sonner";
 
+import {
+  SearchableSelect,
+  type SearchOption,
+} from "@/components/searchable-select";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,20 +18,23 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { NodeJSON, ShipmentJSON } from "@/lib/types";
+import type { DriverListItem, NodeJSON, ShipmentJSON } from "@/lib/types";
 
 type Props = {
   nodes: NodeJSON[];
+  drivers: DriverListItem[];
   onCreated: (shipment: ShipmentJSON) => void;
 };
 
-const selectClass =
-  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+function nodeLabel(n: NodeJSON) {
+  return `${n.name} (${n.kind})`;
+}
 
-export function CreateShipmentForm({ nodes, onCreated }: Props) {
+type InventoryLine = { item: string; quantity: number; unit?: string };
+
+export function CreateShipmentForm({ nodes, drivers, onCreated }: Props) {
   const [origin, setOrigin] = useState<string>("");
   const [destination, setDestination] = useState<string>("");
-  const [waypoints, setWaypoints] = useState<string[]>([]);
   const [description, setDescription] = useState("");
   const [cargo, setCargo] = useState("");
   const [quantity, setQuantity] = useState("");
@@ -34,24 +42,129 @@ export function CreateShipmentForm({ nodes, onCreated }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const originOptions = useMemo(() => nodes, [nodes]);
-  const destinationOptions = useMemo(
-    () => nodes.filter((n) => n.hasHardware && !n.pendingOnboarding),
+  const [inventoryNeed, setInventoryNeed] = useState<InventoryLine[]>([]);
+  const [inventoryWant, setInventoryWant] = useState<InventoryLine[]>([]);
+  const [inventoryLoading, setInventoryLoading] = useState(false);
+  const [inventoryPick, setInventoryPick] = useState("");
+
+  const destinationNode = useMemo(
+    () => (destination ? nodes.find((n) => n.nodeId === destination) : undefined),
+    [nodes, destination],
+  );
+  const destinationHasInventory = Boolean(destinationNode);
+
+  useEffect(() => {
+    setInventoryPick("");
+    setInventoryNeed([]);
+    setInventoryWant([]);
+    if (!destination || !destinationHasInventory) return;
+
+    let cancelled = false;
+    setInventoryLoading(true);
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/warehouse/inventory?warehouseNodeId=${encodeURIComponent(destination)}`,
+          { cache: "no-store" },
+        );
+        const data = (await res.json()) as {
+          need?: InventoryLine[];
+          want?: InventoryLine[];
+          error?: unknown;
+        };
+        if (!res.ok) throw new Error("Could not load node inventory.");
+        if (cancelled) return;
+        setInventoryNeed(Array.isArray(data.need) ? data.need : []);
+        setInventoryWant(Array.isArray(data.want) ? data.want : []);
+      } catch {
+        if (!cancelled) {
+          setInventoryNeed([]);
+          setInventoryWant([]);
+          toast.error("Could not load inventory for this destination.");
+        }
+      } finally {
+        if (!cancelled) setInventoryLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [destination, destinationHasInventory]);
+
+  const inventoryOptions: SearchOption[] = useMemo(() => {
+    const out: SearchOption[] = [];
+    inventoryNeed.forEach((line, i) => {
+      const unit = line.unit?.trim();
+      out.push({
+        value: `need:${i}`,
+        label: line.item,
+        description: `Need · ${line.quantity}${unit ? ` ${unit}` : ""}`,
+        keywords: [line.item, "need", "urgent"],
+      });
+    });
+    inventoryWant.forEach((line, i) => {
+      const unit = line.unit?.trim();
+      out.push({
+        value: `want:${i}`,
+        label: line.item,
+        description: `Want · ${line.quantity}${unit ? ` ${unit}` : ""}`,
+        keywords: [line.item, "want", "planned"],
+      });
+    });
+    return out;
+  }, [inventoryNeed, inventoryWant]);
+
+  function applyInventoryPick(key: string) {
+    setInventoryPick(key);
+    if (!key) return;
+    const [bucket, idxStr] = key.split(":");
+    const idx = Number.parseInt(idxStr ?? "", 10);
+    if ((bucket !== "need" && bucket !== "want") || Number.isNaN(idx)) return;
+    const line = bucket === "need" ? inventoryNeed[idx] : inventoryWant[idx];
+    if (!line) return;
+    const unit = line.unit?.trim();
+    const qtyLabel =
+      line.quantity > 0 ? `${line.quantity}${unit ? ` ${unit}` : ""}` : "";
+    setCargo(line.item);
+    setDescription(
+      bucket === "need"
+        ? `Urgent need: ${line.item}${qtyLabel ? ` (${qtyLabel})` : ""}`
+        : `Planned intake: ${line.item}${qtyLabel ? ` (${qtyLabel})` : ""}`,
+    );
+    setQuantity(line.quantity > 0 ? String(line.quantity) : "");
+  }
+
+  const originOptions: SearchOption[] = useMemo(
+    () =>
+      nodes.map((n) => ({
+        value: n.nodeId,
+        label: nodeLabel(n),
+        description: n.nodeId,
+        keywords: [n.nodeId, n.kind],
+      })),
     [nodes],
   );
-  const waypointOptions = useMemo(
+
+  const destinationOptions: SearchOption[] = useMemo(
     () =>
-      nodes.filter(
-        (n) =>
-          n.hasHardware &&
-          !n.pendingOnboarding &&
-          n.nodeId !== origin &&
-          n.nodeId !== destination,
-      ),
-    [nodes, origin, destination],
+      nodes
+        .filter((n) => n.hasHardware && !n.pendingOnboarding)
+        .map((n) => ({
+          value: n.nodeId,
+          label: nodeLabel(n),
+          description: n.nodeId,
+          keywords: [n.nodeId, n.kind],
+        })),
+    [nodes],
   );
 
-  const usedWaypoints = new Set(waypoints);
+  const driverOptions: SearchOption[] = drivers.map((d) => ({
+    value: d.driverDeviceId,
+    label: d.name,
+    description: d.driverDeviceId,
+    keywords: [d.email, d.driverDeviceId],
+  }));
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -71,7 +184,6 @@ export function CreateShipmentForm({ nodes, onCreated }: Props) {
       const body = {
         originNodeId: origin,
         finalDestinationNodeId: destination,
-        waypoints: waypoints.filter(Boolean),
         description: description.trim() || undefined,
         cargo: cargo.trim() || undefined,
         quantity: quantity.trim() ? Number(quantity) : undefined,
@@ -87,13 +199,17 @@ export function CreateShipmentForm({ nodes, onCreated }: Props) {
         shipment?: ShipmentJSON;
       };
       if (!res.ok || !data.shipment) throw new Error(data.error ?? `HTTP ${res.status}`);
+      toast.success(`Shipment ${data.shipment.shipmentId} dispatched.`);
       onCreated(data.shipment);
       setDescription("");
       setCargo("");
       setQuantity("");
-      setWaypoints([]);
+      setInventoryPick("");
+      setDriverDeviceId("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "failed");
+      const msg = err instanceof Error ? err.message : "failed";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setBusy(false);
     }
@@ -106,89 +222,65 @@ export function CreateShipmentForm({ nodes, onCreated }: Props) {
           <PackagePlus className="h-4 w-4" /> Create shipment
         </CardTitle>
         <CardDescription>
-          Multi-hop relief jobs. Destinations need an assigned device (real or
-          simulated via the tap button).
+          Relief jobs from origin to destination. Destinations need an assigned device
+          (real or simulated via the tap button).
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={onSubmit} className="grid gap-3 md:grid-cols-2">
           <div className="space-y-1.5">
             <Label>From (origin)</Label>
-            <select
-              className={selectClass}
+            <SearchableSelect
+              options={originOptions}
               value={origin}
-              onChange={(e) => setOrigin(e.target.value)}
-              required
-            >
-              <option value="">Select origin…</option>
-              {originOptions.map((n) => (
-                <option key={n.nodeId} value={n.nodeId}>
-                  {n.name} ({n.kind})
-                </option>
-              ))}
-            </select>
+              onChange={setOrigin}
+              placeholder="Select origin…"
+              searchPlaceholder="Search nodes…"
+              emptyMessage="No matching nodes."
+              clearable
+            />
           </div>
           <div className="space-y-1.5">
             <Label>To (final destination)</Label>
-            <select
-              className={selectClass}
+            <SearchableSelect
+              options={destinationOptions}
               value={destination}
-              onChange={(e) => setDestination(e.target.value)}
-              required
-            >
-              <option value="">Select destination…</option>
-              {destinationOptions.map((n) => (
-                <option key={n.nodeId} value={n.nodeId}>
-                  {n.name} ({n.kind})
-                </option>
-              ))}
-            </select>
+              onChange={setDestination}
+              placeholder="Select destination…"
+              searchPlaceholder="Search nodes…"
+              emptyMessage="No matching nodes."
+              clearable
+            />
           </div>
 
-          <div className="space-y-1.5 md:col-span-2">
-            <Label>Waypoints (optional, in order)</Label>
-            <div className="flex flex-wrap gap-2">
-              {waypoints.map((w, i) => {
-                const node = nodes.find((n) => n.nodeId === w);
-                return (
-                  <span
-                    key={`${w}-${i}`}
-                    className="inline-flex items-center gap-1 rounded-md border bg-muted px-2 py-0.5 text-xs"
-                  >
-                    {node?.name ?? w}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setWaypoints((prev) => prev.filter((_, idx) => idx !== i))
-                      }
-                      className="text-muted-foreground hover:text-foreground"
-                      aria-label={`remove ${w}`}
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                );
-              })}
-              <select
-                className={`${selectClass} max-w-xs`}
-                value=""
-                onChange={(e) => {
-                  if (e.target.value) {
-                    setWaypoints((prev) => [...prev, e.target.value]);
-                  }
-                }}
-              >
-                <option value="">+ add waypoint…</option>
-                {waypointOptions
-                  .filter((n) => !usedWaypoints.has(n.nodeId))
-                  .map((n) => (
-                    <option key={n.nodeId} value={n.nodeId}>
-                      {n.name} ({n.kind})
-                    </option>
-                  ))}
-              </select>
+          {destinationHasInventory ? (
+            <div className="space-y-1.5 md:col-span-2">
+              <Label htmlFor="ship-inv-pick">Goods from destination inventory</Label>
+              <SearchableSelect
+                id="ship-inv-pick"
+                options={inventoryOptions}
+                value={inventoryPick}
+                onChange={applyInventoryPick}
+                disabled={inventoryLoading || inventoryOptions.length === 0}
+                placeholder={
+                  inventoryLoading
+                    ? "Loading inventory…"
+                    : inventoryOptions.length === 0
+                      ? "No need/want lines saved for this node yet"
+                      : "Search items from need & want lists…"
+                }
+                searchPlaceholder="Search items…"
+                emptyMessage="No matching inventory lines."
+                clearable
+              />
+              <p className="text-xs text-muted-foreground">
+                Uses this node&apos;s saved{" "}
+                <span className="font-medium">Need</span> and{" "}
+                <span className="font-medium">Want</span> lists. Choosing a row fills
+                description, cargo, and quantity; you can edit them afterward.
+              </p>
             </div>
-          </div>
+          ) : null}
 
           <div className="space-y-1.5 md:col-span-2">
             <Label htmlFor="ship-desc">Description</Label>
@@ -220,13 +312,19 @@ export function CreateShipmentForm({ nodes, onCreated }: Props) {
             />
           </div>
           <div className="space-y-1.5 md:col-span-2">
-            <Label htmlFor="ship-driver">Driver device ID (optional)</Label>
-            <Input
-              id="ship-driver"
+            <Label>Driver (optional)</Label>
+            <SearchableSelect
+              options={driverOptions}
               value={driverDeviceId}
-              onChange={(e) => setDriverDeviceId(e.target.value)}
-              placeholder="driver-uno-01"
-              pattern="[-a-zA-Z0-9._]+"
+              onChange={setDriverDeviceId}
+              placeholder={
+                drivers.length === 0
+                  ? "No drivers registered yet…"
+                  : "Search drivers by name or device id…"
+              }
+              searchPlaceholder="Search drivers…"
+              emptyMessage="No matching drivers."
+              clearable
             />
             <p className="text-xs text-muted-foreground">
               Applied to every leg; override per-leg later from the shipments table.

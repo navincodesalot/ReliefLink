@@ -41,12 +41,24 @@ export function toShipmentLegJSON(
     fromNodeId: l.fromNodeId,
     toNodeId: l.toNodeId,
     driverDeviceId: l.driverDeviceId ?? null,
+    estimatedDurationMinutes:
+      typeof l.estimatedDurationMinutes === "number"
+        ? l.estimatedDurationMinutes
+        : 45,
     status: l.status,
     startedAt: l.startedAt ? l.startedAt.toISOString() : null,
     completedAt: l.completedAt ? l.completedAt.toISOString() : null,
     transferEventId: l.transferEventId ?? null,
     solanaSignature: sig,
     solanaExplorerUrl: sig ? explorerUrl(sig) : null,
+    proofDueAt: l.proofDueAt ? l.proofDueAt.toISOString() : null,
+    deliveryQuality: l.deliveryQuality ?? null,
+    deliveryMatchesManifest:
+      typeof l.deliveryMatchesManifest === "boolean"
+        ? l.deliveryMatchesManifest
+        : null,
+    proofSkippedReason: l.proofSkippedReason ?? null,
+    deliveryProofNotes: l.deliveryProofNotes ?? null,
   };
 }
 

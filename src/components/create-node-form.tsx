@@ -3,6 +3,7 @@
 import { type FormEvent, useState } from "react";
 import { MapPin } from "lucide-react";
 
+import { nativeSelectClassName } from "@/lib/form-classes";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -98,7 +99,7 @@ export function CreateNodeForm({ onCreated }: Props) {
             <Label htmlFor="node-kind">Kind</Label>
             <select
               id="node-kind"
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className={nativeSelectClassName()}
               value={kind}
               onChange={(e) => setKind(e.target.value as NodeKind)}
             >

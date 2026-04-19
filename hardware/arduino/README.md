@@ -10,8 +10,16 @@ then buzzes.
 
 The **USB bridge** (`usb-bridge/bridge.mjs`) on the field laptop forwards the
 driver's `TAP` to `POST /api/transfer`. The server looks up the driver's
-currently-assigned active leg and signs the handoff on Solana testnet — no
+currently-assigned active leg and moves it into `awaiting_proof` — no
 store identity ever travels on the wire.
+
+**Delivery photo required.** A successful tap no longer finalizes the leg on
+its own. The driver must open the PWA (`/driver`) and upload a photo of the
+delivered goods within two minutes; the server runs Gemini Flash over the
+image to verify the cargo matches the manifest and to grade its condition
+(`good` / `acceptable` / `poor`), then anchors the handoff on Solana. If the
+window lapses the leg is still marked delivered, but the shipment is flagged
+for audit with a `photo missed` label.
 
 | Board | Folder | Power | Sends |
 | ----- | ------ | ----- | ----- |

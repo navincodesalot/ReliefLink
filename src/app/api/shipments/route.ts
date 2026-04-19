@@ -23,7 +23,6 @@ const CreateShipmentSchema = z.object({
   quantity: z.number().int().nonnegative().optional(),
   originNodeId: z.string().min(1).max(48),
   finalDestinationNodeId: z.string().min(1).max(48),
-  waypoints: z.array(z.string().min(1).max(48)).max(8).optional(),
   driverDeviceId: z
     .string()
     .min(1)
@@ -67,11 +66,7 @@ export async function POST(req: Request) {
 
   await connectDb();
 
-  const route = [
-    input.originNodeId,
-    ...(input.waypoints ?? []),
-    input.finalDestinationNodeId,
-  ];
+  const route = [input.originNodeId, input.finalDestinationNodeId];
   const unique = new Set(route);
   if (unique.size !== route.length) {
     return NextResponse.json(

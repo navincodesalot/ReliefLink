@@ -1,6 +1,8 @@
 import type {
+  DeliveryQuality,
   LegStatus,
   NodeKind,
+  ProofSkippedReason,
   ShipmentStatus,
   TapSourceLiteral,
 } from "@/lib/constants";
@@ -28,12 +30,18 @@ export type ShipmentLegJSON = {
   fromNodeId: string;
   toNodeId: string;
   driverDeviceId: string | null;
+  estimatedDurationMinutes: number;
   status: LegStatus;
   startedAt: string | null;
   completedAt: string | null;
   transferEventId: string | null;
   solanaSignature: string | null;
   solanaExplorerUrl: string | null;
+  proofDueAt: string | null;
+  deliveryQuality: DeliveryQuality | null;
+  deliveryMatchesManifest: boolean | null;
+  proofSkippedReason: ProofSkippedReason | null;
+  deliveryProofNotes: string | null;
 };
 
 export type ShipmentJSON = {
@@ -74,6 +82,13 @@ export type TransferEventJSON = {
   solanaExplorerUrl: string | null;
   memoPayload: string | null;
   notes: string | null;
+};
+
+/** Row from `GET /api/drivers` for admin/warehouse dropdowns. */
+export type DriverListItem = {
+  driverDeviceId: string;
+  name: string;
+  email: string;
 };
 
 export type DriverJobJSON = {

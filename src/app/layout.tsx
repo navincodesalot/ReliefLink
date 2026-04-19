@@ -3,7 +3,10 @@ import "@/styles/globals.css";
 import { type Metadata } from "next";
 import { Geist } from "next/font/google";
 
+import { AppShell } from "@/components/app-shell";
 import { LanguageProvider } from "@/components/language-provider";
+import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
 import { resolveSessionContext } from "@/lib/ai/preferences";
 
 export const metadata: Metadata = {
@@ -26,14 +29,19 @@ export default async function RootLayout({
   return (
     <html
       lang={session.resolvedLanguage}
-      className={`${geist.variable}`}
+      className={`${geist.variable} scrollbar-none`}
       suppressHydrationWarning
     >
       <body
         className="min-h-screen bg-background font-sans text-foreground antialiased"
         suppressHydrationWarning
       >
-        <LanguageProvider initialSession={session}>{children}</LanguageProvider>
+        <LanguageProvider initialSession={session}>
+          <ThemeProvider>
+            <AppShell>{children}</AppShell>
+            <Toaster richColors closeButton position="top-right" />
+          </ThemeProvider>
+        </LanguageProvider>
       </body>
     </html>
   );
