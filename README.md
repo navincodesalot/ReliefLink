@@ -1,3 +1,6 @@
+<h2 align="center">1st Place for Track 2 — <strong>United Nations x Global Food Institute</strong></h2>
+<p align="center"><em>At George Hacks 2026</em></p>
+
 # ReliefLink by Moonshot
 
 A **blockchain-powered chain of custody** system on **Solana** that helps food aid stay transparently tracked, with **quality checks** at handoffs—including **Gemini**-assisted verification of delivery photos—so aid is more likely to reach the right communities.
